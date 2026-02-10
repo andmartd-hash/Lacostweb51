@@ -168,7 +168,7 @@ const INITIAL_COUNTRIES = [
 const INITIAL_RISK = [
   { Risk: "Low", Contingency: 0.02 },
   { Risk: "Medium", Contingency: 0.05 },
-  { Risk: "High", Contingency: 0.08 },
+  { Risk: "High", Contingency: 0.09 }, // UPDATED to 0.09
 ];
 
 const INITIAL_OFFERING = [
@@ -992,12 +992,28 @@ const App = () => {
   const taxAmount = subTotal * globalConfig.tax;
   const grandTotal = subTotal + contingencyAmount + taxAmount;
   
-  // --- ⚡ CORRECCIÓN: SEPARAR RISK Y TAX EN EL CHART ---
+  // --- ⚡ CORRECCIÓN: LABEL DEL CHART AHORA MUESTRA EL PARÁMETRO CONFIGURADO ---
   const chartData = [
-    { name: "Services", value: totalServices },
-    { name: "Management", value: totalManagement },
-    { name: "Risk", value: contingencyAmount }, // Separado
-    { name: "Tax", value: taxAmount },          // Separado
+    { 
+      name: "Services", 
+      value: totalServices, 
+      label: grandTotal > 0 ? `${((totalServices / grandTotal) * 100).toFixed(0)}%` : "0%" 
+    },
+    { 
+      name: "Management", 
+      value: totalManagement, 
+      label: grandTotal > 0 ? `${((totalManagement / grandTotal) * 100).toFixed(0)}%` : "0%" 
+    },
+    { 
+      name: "Risk", 
+      value: contingencyAmount, 
+      label: `${(globalConfig.contingency * 100).toFixed(1)}%` // Muestra 9.0% directo
+    },
+    { 
+      name: "Tax", 
+      value: taxAmount, 
+      label: `${(globalConfig.tax * 100).toFixed(1)}%` 
+    },
   ];
 
   // --- RENDER LOGIN SCREEN IF NOT LOGGED IN ---
@@ -1621,15 +1637,10 @@ const App = () => {
                       />
                     ))}
                     <LabelList
-                      dataKey="value"
+                      dataKey="label" // Cambiado a 'label' pre-calculado
                       position="center"
                       fill="black"
                       style={{ fontWeight: "bold" }}
-                      formatter={(v) =>
-                        grandTotal > 0
-                          ? `${((v / grandTotal) * 100).toFixed(0)}%`
-                          : ""
-                      }
                     />
                   </Bar>
                 </BarChart>
