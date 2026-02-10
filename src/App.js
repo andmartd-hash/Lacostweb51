@@ -1,0 +1,1651 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { initializeApp, getApps } from "firebase/app";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
+import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+} from "recharts";
+import {
+  Trash2,
+  Database,
+  Settings,
+  TrendingUp,
+  Upload,
+  Download,
+  X,
+  Cloud,
+  Wifi,
+  AlertCircle,
+  Key,
+  Link as LinkIcon,
+  Globe,
+  RefreshCcw,
+  LogOut,
+  User,
+  Lock,
+} from "lucide-react";
+
+// --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
+const SHARED_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBDNPdGdbn_coDkTVPm0K0t7dscN__qhTQ",
+  authDomain: "lacostweb-amd01.firebaseapp.com",
+  projectId: "lacostweb-amd01",
+  storageBucket: "lacostweb-amd01.firebasestorage.app",
+  messagingSenderId: "711419531773",
+  appId: "1:711419531773:web:203c858a25ed0a6bd2c994",
+  measurementId: "G-BR6KS7N821",
+};
+
+// --- FIREBASE INIT HELPERS ---
+const appId = "lacostweb-shared-v1";
+
+let globalAuth = null;
+let globalDb = null;
+
+const getFirebaseConfig = () => {
+  if (SHARED_FIREBASE_CONFIG) return SHARED_FIREBASE_CONFIG;
+  if (typeof __firebase_config !== "undefined")
+    return JSON.parse(__firebase_config);
+  const local = localStorage.getItem("lacostweb_firebase_config");
+  return local ? JSON.parse(local) : null;
+};
+
+const activeConfig = getFirebaseConfig();
+
+if (activeConfig && !getApps().length) {
+  try {
+    const app = initializeApp(activeConfig);
+    globalAuth = getAuth(app);
+    globalDb = getFirestore(app);
+  } catch (error) {
+    console.warn("Auto-init warning:", error);
+  }
+}
+
+// --- COMPONENTS ---
+const IbmLogo = () => (
+  <svg
+    viewBox="0 0 100 100"
+    className="h-12 w-12 shadow-sm rounded-xl"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect width="100" height="100" rx="16" fill="black" />
+    <defs>
+      <mask id="ibm-stripes">
+        <rect width="100" height="100" fill="white" />
+        <rect y="36" width="100" height="3" fill="black" />
+        <rect y="43" width="100" height="3" fill="black" />
+        <rect y="50" width="100" height="3" fill="black" />
+        <rect y="57" width="100" height="3" fill="black" />
+        <rect y="64" width="100" height="3" fill="black" />
+      </mask>
+    </defs>
+    <text
+      x="50"
+      y="68"
+      fontSize="40"
+      fontWeight="900"
+      fontFamily="serif"
+      textAnchor="middle"
+      fill="#3b82f6"
+      mask="url(#ibm-stripes)"
+      style={{
+        letterSpacing: "2px",
+        filter: "drop-shadow(0px 0px 2px rgba(59,130,246,0.8))",
+      }}
+    >
+      IBM
+    </text>
+  </svg>
+);
+
+// --- UTILITIES ---
+const parseRawFloat = (val) => {
+  if (!val) return 0;
+  if (typeof val === "number") return val;
+  const clean = val.toString().replace(/[^0-9.-]/g, "");
+  return parseFloat(clean) || 0;
+};
+
+const getInitialDates = () => {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const end = new Date(start);
+  end.setFullYear(end.getFullYear() + 1);
+  const formatDate = (d) => d.toISOString().split("T")[0];
+  return { start: formatDate(start), end: formatDate(end) };
+};
+
+const getQuoteIdFromUrl = () => {
+  if (typeof window !== "undefined") {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("id");
+      if (id) return id;
+    } catch (e) {
+      console.warn("Could not read URL params:", e);
+    }
+  }
+  return "COT-" + Math.floor(Math.random() * 10000);
+};
+
+// --- INITIAL MASTER DATA ---
+const INITIAL_COUNTRIES = [
+  { Country: "Argentina", Currency: "ARS", ER: 1428.95, Tax: 1 },
+  { Country: "Brazil", Currency: "BRL", ER: 5.34, Tax: 1 },
+  { Country: "Chile", Currency: "CLP", ER: 934.7, Tax: 1 },
+  { Country: "Colombia", Currency: "COP", ER: 3775.22, Tax: 1 },
+  { Country: "Ecuador", Currency: "USD", ER: 1, Tax: 1 },
+  { Country: "Peru", Currency: "PEN", ER: 3.37, Tax: 1 },
+  { Country: "Mexico", Currency: "MXN", ER: 18.42, Tax: 1 },
+  { Country: "Uruguay", Currency: "UYU", ER: 39.73, Tax: 1 },
+  { Country: "Venezuela", Currency: "VES", ER: 235.28, Tax: 1 },
+  { Country: "USA", Currency: "USD", ER: 1, Tax: 1 },
+  { Country: "Canada", Currency: "USD", ER: 1, Tax: 1 },
+];
+
+const INITIAL_RISK = [
+  { Risk: "Low", Contingency: 0.02 },
+  { Risk: "Medium", Contingency: 0.05 },
+  { Risk: "High", Contingency: 0.08 },
+];
+
+const INITIAL_OFFERING = [
+  {
+    Offering: "IBM Hardware Resell for Server and Storage-Lenovo",
+    L40: "6942-1BT Location Based Services",
+  },
+  { Offering: "1-HWMA MVS SPT other Prod", L40: "6942-0IC Conga by CSV" },
+  { Offering: "2-HWMA MVS SPT other Prod", L40: "6942-0IC Conga by CSV" },
+  { Offering: "SWMA MVS SPT other Prod", L40: "6942-76O Conga by CSV" },
+  { Offering: "IBM Support for Red Hat", L40: "6948-B73 Conga by CSV" },
+  {
+    Offering: "IBM Support for Red Hat - Enterprise Linux Subscription",
+    L40: "6942-42T Location Based Services",
+  },
+  {
+    Offering: "Subscription for Red Hat",
+    L40: "6948-66J Location Based Services",
+  },
+  { Offering: "Support for Red Hat", L40: "6949-66K Location Based Services" },
+  {
+    Offering: "IBM Support for Oracle",
+    L40: "6942-42E Location Based Services",
+  },
+  {
+    Offering: "IBM Customized Support for Multivendor Hardware Services",
+    L40: "6942-76T Location Based Services",
+  },
+  {
+    Offering: "IBM Customized Support for Multivendor Software Services",
+    L40: "6942-76U Location Based Services",
+  },
+  {
+    Offering: "IBM Customized Support for Hardware Services-Logo",
+    L40: "6942-76V Location Based Services",
+  },
+  {
+    Offering: "IBM Customized Support for Software Services-Logo",
+    L40: "6942-76W Location Based Services",
+  },
+  {
+    Offering: "HWMA MVS SPT other Loc",
+    L40: "6942-0ID Location Based Services",
+  },
+  {
+    Offering: "SWMA MVS SPT other Loc",
+    L40: "6942-0IG Location Based Services",
+  },
+  {
+    Offering: "Relocation Services - Packaging",
+    L40: "6942-54E Location Based Services",
+  },
+  {
+    Offering: "Relocation Services - Movers Charge",
+    L40: "6942-54F Location Based Services",
+  },
+  {
+    Offering: "Relocation Services - Travel and Living",
+    L40: "6942-54R Location Based Services",
+  },
+  {
+    Offering: "Relocation Services - External Vendor's Charge",
+    L40: "6942-78O Location Based Services",
+  },
+  {
+    Offering: "IBM Hardware Resell for Networking and Security Alliances",
+    L40: "6942-1GE Location Based Services",
+  },
+  {
+    Offering: "IBM Hardware Resell for Networking and Security Alliances",
+    L40: "6942-1GF Location Based Services",
+  },
+  {
+    Offering: "System Technical Support Service-MVS-STSS",
+    L40: "6942-1FN Location Based Services",
+  },
+  {
+    Offering: "System Technical Support Service-Logo-STSS",
+    L40: "6942-1KJ Location Based Services",
+  },
+];
+
+const INITIAL_SLC = [
+  { Scope: "Global", SLC: "M1A", UPLF: 1 },
+  { Scope: "Global", SLC: "M16", UPLF: 1 },
+  { Scope: "Global", SLC: "M19", UPLF: 1 },
+  { Scope: "Global", SLC: "M5B", UPLF: 1.05 },
+  { Scope: "Global", SLC: "M47", UPLF: 1.5 },
+  { Scope: "Global", SLC: "MJ7", UPLF: 1.1 },
+  { Scope: "Global", SLC: "M3F", UPLF: 1.15 },
+  { Scope: "Global", SLC: "M3B", UPLF: 1.2 },
+  { Scope: "Global", SLC: "M33", UPLF: 1.3 },
+  { Scope: "Global", SLC: "M2F", UPLF: 1.4 },
+  { Scope: "Global", SLC: "M2B", UPLF: 1.6 },
+  { Scope: "Global", SLC: "M23", UPLF: 1.7 },
+  { Scope: "Global", SLC: "1159", UPLF: 1 },
+  { Scope: "Global", SLC: "5318", UPLF: 0.8 },
+  { Scope: "only Brazil", SLC: "NStd5x9", UPLF: 1 },
+  { Scope: "only Brazil", SLC: "NStd5x10", UPLF: 1.023 },
+  { Scope: "only Brazil", SLC: "NStd5x11", UPLF: 1.042 },
+  { Scope: "only Brazil", SLC: "NStd5x12", UPLF: 1.07 },
+  { Scope: "only Brazil", SLC: "NStd5x13", UPLF: 1.07 },
+  { Scope: "only Brazil", SLC: "NStd5x15", UPLF: 1.091 },
+  { Scope: "only Brazil", SLC: "NStd5x16", UPLF: 1.1 },
+  { Scope: "only Brazil", SLC: "NStdFix12 5x15", UPLF: 1.141 },
+  { Scope: "only Brazil", SLC: "NStdFix12 5x24", UPLF: 1.193 },
+  { Scope: "only Brazil", SLC: "NStdFix12 7x24", UPLF: 1.25 },
+];
+
+const INITIAL_LPLAT_GLOBAL = [
+  {
+    Def: "Mainframe",
+    Plat: "Mainframe",
+    Argentina: 395855.46,
+    Chile: 1515689.29,
+    Colombia: 2259464.9,
+    Ecuador: 991.21,
+    Peru: 1284.61,
+    Uruguay: 30167.4,
+    Venezuela: 147374.24,
+    Mexico: 12857.25,
+  },
+  {
+    Def: "Logo HE",
+    Plat: "Logo HE",
+    Argentina: 212930.54,
+    Chile: 484822.8,
+    Colombia: 541917.22,
+    Ecuador: 300.93,
+    Peru: 400.8,
+    Uruguay: 17730.49,
+    Venezuela: 96463.14,
+    Mexico: 3953.13,
+  },
+  {
+    Def: "Logo LE",
+    Plat: "Logo LE",
+    Argentina: 174274.83,
+    Chile: 344256.76,
+    Colombia: 206474.71,
+    Ecuador: 225.69,
+    Peru: 260.35,
+    Uruguay: 11511.98,
+    Venezuela: 48231.57,
+    Mexico: 3488.79,
+  },
+  {
+    Def: "MVS HE",
+    Plat: "MVS HE",
+    Argentina: 59766.53,
+    Chile: 20151.55,
+    Colombia: 19686.98,
+    Ecuador: 87.68,
+    Peru: 94.4,
+    Uruguay: 9052.79,
+    Venezuela: 23594.39,
+    Mexico: 970.3,
+  },
+  {
+    Def: "MVS LE",
+    Plat: "MVS LE",
+    Argentina: 6061.55,
+    Chile: 10579.8,
+    Colombia: 17897.25,
+    Ecuador: 15.75,
+    Peru: 73.5,
+    Uruguay: 2502.94,
+    Venezuela: 14822.8,
+    Mexico: 270.27,
+  },
+];
+
+const INITIAL_LPLAT_BRAZIL = [
+  { Def: "1", Plat: "System Z", Rate: 2803.85 },
+  { Def: "2", Plat: "Power HE", Rate: 1516.61 },
+  { Def: "3", Plat: "Power LE", Rate: 742.22 },
+  { Def: "4Br", Plat: "Storage HE", Rate: 1403.43 },
+  { Def: "5Br", Plat: "Storage LE", Rate: 536.45 },
+  { Def: "B", Plat: "Demais Produtos - Proxxi", Rate: 83.37 },
+  { Def: "J", Plat: "MVS LE", Rate: 130.87 },
+  { Def: "L", Plat: "MVS HE", Rate: 361.36 },
+];
+
+const INITIAL_LBAND = [
+  {
+    Def: "B1",
+    Plat: "FULL",
+    Colombia: 15248.0,
+    Brazil: 0,
+    Mexico: 0,
+    Argentina: 0,
+    Chile: 0,
+    Ecuador: 0,
+    Peru: 0,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+  {
+    Def: "B2",
+    Plat: "FULL",
+    Colombia: 26845.88,
+    Brazil: 58.57,
+    Mexico: 235.83,
+    Argentina: 0,
+    Chile: 0,
+    Ecuador: 0,
+    Peru: 73.64,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+  {
+    Def: "B3",
+    Plat: "FULL",
+    Colombia: 47250.0,
+    Brazil: 66.92,
+    Mexico: 300.3,
+    Argentina: 0,
+    Chile: 0,
+    Ecuador: 14.88,
+    Peru: 99.07,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+  {
+    Def: "B4",
+    Plat: "FULL",
+    Colombia: 60375.0,
+    Brazil: 95.66,
+    Mexico: 433.13,
+    Argentina: 11206.59,
+    Chile: 19315.47,
+    Ecuador: 27.72,
+    Peru: 111.12,
+    Uruguay: 0,
+    Venezuela: 24810.48,
+  },
+  {
+    Def: "B5",
+    Plat: "FULL",
+    Colombia: 84525.0,
+    Brazil: 109.15,
+    Mexico: 471.24,
+    Argentina: 14835.74,
+    Chile: 28019.38,
+    Ecuador: 38.8,
+    Peru: 139.39,
+    Uruguay: 3195.11,
+    Venezuela: 26582.65,
+  },
+  {
+    Def: "B6",
+    Plat: "FULL",
+    Colombia: 126000.0,
+    Brazil: 183.46,
+    Mexico: 756.0,
+    Argentina: 36257.76,
+    Chile: 44265.6,
+    Ecuador: 0,
+    Peru: 0,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+  {
+    Def: "B7",
+    Plat: "FULL",
+    Colombia: 151200.0,
+    Brazil: 222.0,
+    Mexico: 900.0,
+    Argentina: 42000.0,
+    Chile: 0,
+    Ecuador: 0,
+    Peru: 0,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+  {
+    Def: "B8",
+    Plat: "FULL",
+    Colombia: 176400.0,
+    Brazil: 258.0,
+    Mexico: 1056.0,
+    Argentina: 48000.0,
+    Chile: 0,
+    Ecuador: 0,
+    Peru: 0,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+  {
+    Def: "B9",
+    Plat: "FULL",
+    Colombia: 201600.0,
+    Brazil: 294.0,
+    Mexico: 1188.0,
+    Argentina: 54000.0,
+    Chile: 0,
+    Ecuador: 0,
+    Peru: 0,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+  {
+    Def: "B10",
+    Plat: "FULL",
+    Colombia: 226800.0,
+    Brazil: 330.0,
+    Mexico: 1320.0,
+    Argentina: 60000.0,
+    Chile: 0,
+    Ecuador: 0,
+    Peru: 0,
+    Uruguay: 0,
+    Venezuela: 0,
+  },
+];
+
+// --- APP COMPONENT ---
+const App = () => {
+  const initialDates = getInitialDates();
+
+  // --- 🔒 LOGIN & AUTH STATE ---
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState("user"); // 'admin' | 'user'
+  const [loginUser, setLoginUser] = useState("");
+  const [loginPass, setLoginPass] = useState("");
+  const [loginError, setLoginError] = useState("");
+
+  // DYNAMIC DATA STATES
+  const [dbCountries, setDbCountries] = useState(INITIAL_COUNTRIES);
+  const [dbRisk, setDbRisk] = useState(INITIAL_RISK);
+  const [dbOffering, setDbOffering] = useState(INITIAL_OFFERING);
+  const [dbSlc, setDbSlc] = useState(INITIAL_SLC);
+  const [dbLplatGlobal, setDbLplatGlobal] = useState(INITIAL_LPLAT_GLOBAL);
+  const [dbLplatBrazil, setDbLplatBrazil] = useState(INITIAL_LPLAT_BRAZIL);
+  const [dbLband, setDbLband] = useState(INITIAL_LBAND);
+
+  // AUTH & FIREBASE STATE
+  const [user, setUser] = useState(null);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [firebaseConfigInput, setFirebaseConfigInput] = useState("");
+  const [masterDataSynced, setMasterDataSynced] = useState(false);
+
+  // UI STATES
+  const [globalConfig, setGlobalConfig] = useState({
+    idCotizacion: getQuoteIdFromUrl(),
+    customerName: "",
+    country: "Colombia",
+    currency: "USD",
+    exchangeRate: 3775.22,
+    risk: "Low",
+    contingency: 0.02,
+    tax: 0.01,
+  });
+
+  const [services, setServices] = useState([
+    {
+      id: 1,
+      offering: dbOffering[0].Offering,
+      slc: "M1A",
+      startDate: initialDates.start,
+      endDate: initialDates.end,
+      duration: 12,
+      qty: 1,
+      unitCostUSD: 0,
+      unitCostLocal: 0,
+    },
+  ]);
+
+  const [managements, setManagements] = useState([
+    {
+      id: 1,
+      mode: "Machine Category",
+      categoryDef: "Mainframe",
+      hours: 0,
+      monthlyCost: 0,
+      startDate: initialDates.start,
+      endDate: initialDates.end,
+      duration: 12,
+    },
+  ]);
+
+  // IMPORT MODAL STATES
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [importTarget, setImportTarget] = useState("OFFERING");
+  const [importText, setImportText] = useState("");
+  const [importMessage, setImportMessage] = useState({ text: "", type: "" });
+
+  // --- EFFECT: UPDATE URL ---
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const url = new URL(window.location);
+        url.searchParams.set("id", globalConfig.idCotizacion);
+        window.history.pushState({}, "", url);
+      } catch (e) {
+        console.warn("URL update blocked by environment:", e);
+      }
+    }
+  }, [globalConfig.idCotizacion]);
+
+  // --- INIT EFFECT (AUTH) ---
+  useEffect(() => {
+    if (globalAuth) {
+      const unsubscribe = onAuthStateChanged(globalAuth, setUser);
+      if (!globalAuth.currentUser) {
+        signInAnonymously(globalAuth).catch((e) =>
+          console.error("Auto-login error", e)
+        );
+      }
+      return () => unsubscribe();
+    }
+  }, []);
+
+  // --- 1. LISTENER DE TABLAS MAESTRAS (GLOBAL) ---
+  useEffect(() => {
+    if (!globalDb) return;
+    const masterDocRef = doc(
+      globalDb,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "settings",
+      "master_tables"
+    );
+    const unsubscribe = onSnapshot(masterDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.dbCountries) setDbCountries(data.dbCountries);
+        if (data.dbRisk) setDbRisk(data.dbRisk);
+        if (data.dbOffering) setDbOffering(data.dbOffering);
+        if (data.dbSlc) setDbSlc(data.dbSlc);
+        if (data.dbLplatGlobal) setDbLplatGlobal(data.dbLplatGlobal);
+        if (data.dbLplatBrazil) setDbLplatBrazil(data.dbLplatBrazil);
+        if (data.dbLband) setDbLband(data.dbLband);
+        setMasterDataSynced(true);
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // --- 2. LISTENER DE COTIZACIÓN (INDIVIDUAL) ---
+  useEffect(() => {
+    if (!user || !globalDb) return;
+    const quoteDocRef = doc(
+      globalDb,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "quotes",
+      globalConfig.idCotizacion
+    );
+    const unsubscribe = onSnapshot(quoteDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.services) setServices(data.services);
+        if (data.managements) setManagements(data.managements);
+        if (data.globalConfig)
+          setGlobalConfig((prev) => ({
+            ...prev,
+            ...data.globalConfig,
+            idCotizacion: prev.idCotizacion,
+          }));
+        if (data.lastUpdated) setLastSaved(new Date(data.lastUpdated));
+      }
+    });
+    return () => unsubscribe();
+  }, [user, globalConfig.idCotizacion]);
+
+  // --- HANDLER: LOGIN ---
+  const handleAppLogin = (e) => {
+    e.preventDefault();
+    if (loginUser === "Admin" && loginPass === "54321") {
+      setUserRole("admin");
+      setIsAppLoggedIn(true);
+      setLoginError("");
+    } else if (loginUser === "User" && loginPass === "12345") {
+      setUserRole("user");
+      setIsAppLoggedIn(true);
+      setLoginError("");
+    } else {
+      setLoginError("Credenciales inválidas. Intente nuevamente.");
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAppLoggedIn(false);
+    setLoginUser("");
+    setLoginPass("");
+    setUserRole("user");
+  };
+
+  // --- HELPER: GUARDAR TABLAS GLOBALES EN NUBE ---
+  const saveMasterTablesToCloud = async (tableName, newData) => {
+    if (!globalDb) return;
+    const masterDocRef = doc(
+      globalDb,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "settings",
+      "master_tables"
+    );
+    const keyMap = {
+      OFFERING: "dbOffering",
+      SLC: "dbSlc",
+      LPLAT_GLOBAL: "dbLplatGlobal",
+      LPLAT_BRAZIL: "dbLplatBrazil",
+      LBAND: "dbLband",
+      COUNTRIES: "dbCountries",
+      RISK: "dbRisk",
+    };
+    const dbKey = keyMap[tableName];
+    if (dbKey) {
+      try {
+        await setDoc(masterDocRef, { [dbKey]: newData }, { merge: true });
+      } catch (e) {
+        console.error("Error updating master table:", e);
+      }
+    }
+  };
+
+  const handleConnectFirebase = async () => {
+    try {
+      let cleanInput = firebaseConfigInput.trim();
+      if (cleanInput.includes("="))
+        cleanInput = cleanInput.split("=")[1].trim();
+      if (cleanInput.endsWith(";") || cleanInput.endsWith(","))
+        cleanInput = cleanInput.slice(0, -1).trim();
+      const fixedJson = cleanInput
+        .replace(
+          /(apiKey|authDomain|projectId|storageBucket|messagingSenderId|appId|measurementId)\s*:/g,
+          '"$1":'
+        )
+        .replace(/'/g, '"')
+        .replace(/,\s*}/g, "}");
+      let config;
+      try {
+        config = JSON.parse(fixedJson);
+      } catch (e) {
+        throw new Error("JSON Inválido.");
+      }
+      if (!getApps().length) {
+        const app = initializeApp(config);
+        globalAuth = getAuth(app);
+        globalDb = getFirestore(app);
+        await signInAnonymously(globalAuth);
+        localStorage.setItem(
+          "lacostweb_firebase_config",
+          JSON.stringify(config)
+        );
+        onAuthStateChanged(globalAuth, setUser);
+        alert("✅ Conectado.");
+        setShowConfigModal(false);
+      } else {
+        alert("⚠️ Reinicia la página.");
+      }
+    } catch (e) {
+      alert("❌ Error: " + e.message);
+    }
+  };
+
+  const handleDisconnectFirebase = () => {
+    if (window.confirm("¿Desconectar?")) {
+      localStorage.removeItem("lacostweb_firebase_config");
+      window.location.reload();
+    }
+  };
+
+  const handleSaveToCloud = async () => {
+    if (!user || !globalDb) {
+      setLastSaved(new Date());
+      alert("💾 Guardado LOCALMENTE (Offline).");
+      return;
+    }
+    try {
+      const quoteDocRef = doc(
+        globalDb,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "quotes",
+        globalConfig.idCotizacion
+      );
+      await setDoc(quoteDocRef, {
+        services,
+        managements,
+        globalConfig,
+        lastUpdated: new Date().toISOString(),
+        savedBy: user.uid,
+      });
+      setLastSaved(new Date());
+      alert(`☁️ Cotización guardada! ID: ${globalConfig.idCotizacion}`);
+    } catch (e) {
+      alert("Error de conexión.");
+    }
+  };
+
+  const handleShareLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    alert("🔗 Link copiado!");
+  };
+
+  const handleExportData = () => {
+    const backupData = {
+      dbCountries,
+      dbRisk,
+      dbOffering,
+      dbSlc,
+      dbLplatGlobal,
+      dbLplatBrazil,
+      dbLband,
+      exportDate: new Date().toISOString(),
+      version: "V50.1-React",
+    };
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute(
+      "download",
+      `lacostweb-tables-${new Date().toISOString().split("T")[0]}.json`
+    );
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleImportData = () => {
+    if (!importText.trim()) {
+      setImportMessage({ text: "No data.", type: "error" });
+      return;
+    }
+    try {
+      const lines = importText.trim().split("\n");
+      if (lines.length < 2) throw new Error("Falta cabecera o datos");
+      const delimiter = lines[0].includes("\t") ? "\t" : ",";
+      const headers = lines[0]
+        .split(delimiter)
+        .map((h) => h.trim().replace(/^"|"$/g, ""));
+      const newData = lines.slice(1).map((line) => {
+        const values = line.split(delimiter);
+        const obj = {};
+        headers.forEach((h, i) => {
+          let val = values[i] ? values[i].trim().replace(/^"|"$/g, "") : "";
+          if (val !== "" && !isNaN(Number(val.replace(/,/g, ""))))
+            obj[h] = Number(val.replace(/,/g, ""));
+          else obj[h] = val;
+        });
+        return obj;
+      });
+
+      switch (importTarget) {
+        case "OFFERING":
+          setDbOffering(newData);
+          break;
+        case "SLC":
+          setDbSlc(newData);
+          break;
+        case "LPLAT_GLOBAL":
+          setDbLplatGlobal(newData);
+          break;
+        case "LPLAT_BRAZIL":
+          setDbLplatBrazil(newData);
+          break;
+        case "LBAND":
+          setDbLband(newData);
+          break;
+        case "COUNTRIES":
+          setDbCountries(newData);
+          break;
+        case "RISK":
+          setDbRisk(newData);
+          break;
+      }
+
+      if (user && globalDb) {
+        saveMasterTablesToCloud(importTarget, newData);
+      }
+      setImportMessage({
+        text: `Updated ${importTarget} (${newData.length} rows).`,
+        type: "success",
+      });
+      setTimeout(() => {
+        setImportText("");
+        setIsUploadModalOpen(false);
+        setImportMessage({ text: "", type: "" });
+      }, 1500);
+    } catch (error) {
+      setImportMessage({ text: "Error parsing data.", type: "error" });
+    }
+  };
+
+  const getDisplayCurrency = () => {
+    if (globalConfig.currency === "USD") return "USD";
+    const c = dbCountries.find((x) => x.Country === globalConfig.country);
+    return c ? c.Currency : "USD";
+  };
+  const displayCurrency = getDisplayCurrency();
+  const handleClearAll = () => {
+    if (window.confirm("¿Borrar?")) {
+      setServices([]);
+      setManagements([]);
+    }
+  };
+  const filteredSLCs = useMemo(
+    () =>
+      globalConfig.country === "Brazil"
+        ? dbSlc
+        : dbSlc.filter((i) => i.Scope !== "only Brazil"),
+    [globalConfig.country, dbSlc]
+  );
+  const activeLPLAT = useMemo(
+    () => (globalConfig.country === "Brazil" ? dbLplatBrazil : dbLplatGlobal),
+    [globalConfig.country, dbLplatBrazil, dbLplatGlobal]
+  );
+
+  useEffect(() => {
+    const c = dbCountries.find((x) => x.Country === globalConfig.country);
+    if (c) setGlobalConfig((p) => ({ ...p, exchangeRate: c.ER, tax: c.Tax }));
+  }, [globalConfig.country, dbCountries]);
+  useEffect(() => {
+    const r = dbRisk.find((x) => x.Risk === globalConfig.risk);
+    if (r) setGlobalConfig((p) => ({ ...p, contingency: r.Contingency }));
+  }, [globalConfig.risk, dbRisk]);
+
+  const handleGlobalChange = (f, v) =>
+    setGlobalConfig((p) => ({ ...p, [f]: v }));
+  const calculateDuration = (s, e) => {
+    if (!s || !e) return 0;
+    const d1 = new Date(s),
+      d2 = new Date(e);
+    let m =
+      (d2.getFullYear() - d1.getFullYear()) * 12 +
+      (d2.getMonth() - d1.getMonth());
+    if (d2.getDate() < d1.getDate()) m--;
+    return Math.max(0, m);
+  };
+  const updateService = (id, f, v) =>
+    setServices(
+      services.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              [f]: v,
+              duration:
+                f === "startDate" || f === "endDate"
+                  ? calculateDuration(
+                      f === "startDate" ? v : s.startDate,
+                      f === "endDate" ? v : s.endDate
+                    )
+                  : s.duration,
+            }
+          : s
+      )
+    );
+  const calculateServiceTotal = (s) => {
+    let cost =
+      globalConfig.currency === "USD"
+        ? s.unitCostUSD + s.unitCostLocal / globalConfig.exchangeRate
+        : s.unitCostUSD * globalConfig.exchangeRate + s.unitCostLocal;
+    const uplf =
+      (globalConfig.country === "Brazil"
+        ? dbSlc.find((i) => i.SLC === s.slc && i.Scope === "only Brazil")
+        : dbSlc.find((i) => i.SLC === s.slc && i.Scope !== "only Brazil")
+      )?.UPLF || 1;
+    return cost * s.duration * s.qty * uplf;
+  };
+  const getManagementRate = (def, mode) => {
+    const db = mode === "Machine Category" ? activeLPLAT : dbLband;
+    const item = db.find((d) => d.Def === def);
+    if (!item) return 0;
+    if (globalConfig.country === "Brazil" && mode === "Machine Category")
+      return parseRawFloat(item.Rate);
+    return parseRawFloat(
+      item[
+        globalConfig.country === "Brazil" ? "Brazil" : globalConfig.country
+      ] || 0
+    );
+  };
+  const updateManagement = (id, f, v) =>
+    setManagements(
+      managements.map((m) => {
+        if (m.id !== id) return m;
+        const u = { ...m, [f]: v };
+        if (f === "mode")
+          u.categoryDef = (
+            v === "Machine Category" ? activeLPLAT : dbLband
+          )[0]?.Def;
+        if (f === "startDate" || f === "endDate")
+          u.duration = calculateDuration(u.startDate, u.endDate);
+        return u;
+      })
+    );
+  const calculateManagementTotal = (m) => {
+    const r = getManagementRate(m.categoryDef, m.mode);
+    return (
+      (globalConfig.currency === "USD" ? r / globalConfig.exchangeRate : r) *
+      m.hours *
+      m.duration
+    );
+  };
+
+  const totalServices = services.reduce(
+    (a, s) => a + calculateServiceTotal(s),
+    0
+  );
+  const totalManagement = managements.reduce(
+    (a, m) => a + calculateManagementTotal(m),
+    0
+  );
+  const subTotal = totalServices + totalManagement;
+  const contingencyAmount = subTotal * globalConfig.contingency;
+  const taxAmount = subTotal * globalConfig.tax;
+  const grandTotal = subTotal + contingencyAmount + taxAmount;
+  const chartData = [
+    { name: "Services", value: totalServices },
+    { name: "Management", value: totalManagement },
+    { name: "Risk/Tax", value: contingencyAmount + taxAmount },
+  ];
+
+  // --- RENDER LOGIN SCREEN IF NOT LOGGED IN ---
+  if (!isAppLoggedIn) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md border border-slate-200">
+          <div className="flex justify-center mb-8">
+            <IbmLogo />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
+            LACOSTWEB V51
+          </h2>
+          <p className="text-slate-500 text-center mb-6 text-sm">
+            Please sign in to continue
+          </p>
+
+          <form onSubmit={handleAppLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">
+                Username
+              </label>
+              <div className="relative">
+                <User
+                  className="absolute left-3 top-2.5 text-slate-400"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="Admin or User"
+                  value={loginUser}
+                  onChange={(e) => setLoginUser(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">
+                Password
+              </label>
+              <div className="relative">
+                <Lock
+                  className="absolute left-3 top-2.5 text-slate-400"
+                  size={18}
+                />
+                <input
+                  type="password"
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="•••••"
+                  value={loginPass}
+                  onChange={(e) => setLoginPass(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {loginError && (
+              <div className="p-3 bg-red-50 text-red-600 text-xs rounded border border-red-100 flex items-center">
+                <AlertCircle size={14} className="mr-2" />
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-200"
+            >
+              Access Dashboard
+            </button>
+          </form>
+          <div className="mt-6 text-center text-xs text-slate-400">
+            Protected System • IBM Confidential
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- MAIN APP RENDER ---
+  return (
+    <div className="min-h-screen pb-32 relative bg-slate-50 p-4">
+      {showConfigModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="bg-amber-600 p-4 flex justify-between items-center text-white font-bold">
+              <h3>Configurar Firebase</h3>
+              <button onClick={() => setShowConfigModal(false)}>
+                <X />
+              </button>
+            </div>
+            <div className="p-6">
+              <textarea
+                className="w-full h-32 p-3 border rounded font-mono text-xs mb-4"
+                value={firebaseConfigInput}
+                onChange={(e) => setFirebaseConfigInput(e.target.value)}
+                placeholder="JSON Config..."
+              ></textarea>
+              <button
+                onClick={handleConnectFirebase}
+                className="w-full bg-amber-600 text-white py-2 rounded font-bold"
+              >
+                Conectar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isUploadModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="bg-indigo-600 p-4 flex justify-between items-center text-white font-bold">
+              <h3>Import Data (Global)</h3>
+              <button onClick={() => setIsUploadModalOpen(false)}>
+                <X />
+              </button>
+            </div>
+            <div className="p-6">
+              <select
+                className="w-full p-2 border mb-4"
+                value={importTarget}
+                onChange={(e) => setImportTarget(e.target.value)}
+              >
+                <option value="OFFERING">Offering</option>
+                <option value="SLC">SLC</option>
+                <option value="LPLAT_GLOBAL">LPLAT Global</option>
+                <option value="LPLAT_BRAZIL">LPLAT Brazil</option>
+                <option value="LBAND">LBAND</option>
+                <option value="COUNTRIES">Countries</option>
+                <option value="RISK">Risk</option>
+              </select>
+              <textarea
+                className="w-full h-48 p-3 border rounded font-mono text-xs mb-4"
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Paste Excel..."
+              ></textarea>
+              <button
+                onClick={handleImportData}
+                className="w-full bg-indigo-600 text-white py-2 rounded font-bold"
+              >
+                Update Global Table
+              </button>
+              {importMessage.text && (
+                <div className="text-green-600 mt-2 font-bold">
+                  {importMessage.text}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
+              <IbmLogo /> IBM Costing V51
+            </h1>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="font-bold text-sm text-slate-500">ID:</span>
+              <input
+                className="bg-slate-100 border px-2 rounded w-32 font-mono"
+                value={globalConfig.idCotizacion}
+                onChange={(e) =>
+                  handleGlobalChange("idCotizacion", e.target.value)
+                }
+              />
+              <button
+                onClick={handleShareLink}
+                className="bg-blue-100 text-blue-700 px-2 rounded text-xs font-bold py-1"
+              >
+                <LinkIcon size={12} /> Copiar Link
+              </button>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full border flex items-center ${
+                  user
+                    ? "text-green-600 bg-green-50"
+                    : "text-amber-600 bg-amber-50"
+                }`}
+              >
+                {user ? (
+                  <>
+                    <Wifi size={12} className="mr-1" /> Cloud
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={12} className="mr-1" /> Offline
+                  </>
+                )}
+              </span>
+              {masterDataSynced && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center">
+                  <Globe size={10} className="mr-1" /> Global Tables Synced
+                </span>
+              )}
+              {!user && !SHARED_FIREBASE_CONFIG && (
+                <button
+                  onClick={() => setShowConfigModal(true)}
+                  className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-200"
+                >
+                  <Key size={10} /> Config
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-4 items-center">
+            {/* --- ADMIN ONLY BUTTONS --- */}
+            {userRole === "admin" && (
+              <>
+                <button
+                  onClick={handleExportData}
+                  className="flex gap-2 px-4 py-2 bg-white border rounded-lg text-sm font-medium hover:bg-slate-50"
+                >
+                  <Download size={16} /> Export
+                </button>
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="flex gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700"
+                >
+                  <Upload size={16} /> Update Tables
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={handleClearAll}
+              className="flex gap-2 px-4 py-2 text-red-600 border border-red-100 bg-red-50 rounded-lg hover:bg-red-100 text-sm font-bold"
+            >
+              <RefreshCcw size={16} /> Clear
+            </button>
+
+            {/* --- LOGOUT BUTTON --- */}
+            <button
+              onClick={handleLogout}
+              className="flex gap-2 px-4 py-2 text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 text-sm font-medium transition"
+            >
+              <LogOut size={16} /> Salir
+            </button>
+
+            <div className="text-right border-l pl-4 ml-2">
+              <div className="text-xs font-bold text-green-800">TOTAL</div>
+              <div className="text-3xl font-bold text-green-700">
+                {new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: displayCurrency,
+                }).format(grandTotal)}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">
+              Country
+            </label>
+            <select
+              className="w-full p-2 border rounded"
+              value={globalConfig.country}
+              onChange={(e) => handleGlobalChange("country", e.target.value)}
+            >
+              {dbCountries.map((c) => (
+                <option key={c.Country} value={c.Country}>
+                  {c.Country}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">
+              Currency
+            </label>
+            <select
+              className="w-full p-2 border rounded"
+              value={globalConfig.currency}
+              onChange={(e) => handleGlobalChange("currency", e.target.value)}
+            >
+              <option value="USD">USD</option>
+              <option value="Local">Local</option>
+            </select>
+            {globalConfig.currency === "Local" && (
+              <div className="text-xs text-slate-400 mt-1 font-mono">
+                E/R: {globalConfig.exchangeRate}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">
+              Risk
+            </label>
+            <select
+              className="w-full p-2 border rounded"
+              value={globalConfig.risk}
+              onChange={(e) => handleGlobalChange("risk", e.target.value)}
+            >
+              {dbRisk.map((r) => (
+                <option key={r.Risk} value={r.Risk}>
+                  {r.Risk}
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-slate-400 mt-1 font-mono">
+              Contingency: {(globalConfig.contingency * 100).toFixed(1)}%
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">
+              Customer
+            </label>
+            <input
+              className="w-full p-2 border rounded"
+              value={globalConfig.customerName}
+              onChange={(e) =>
+                handleGlobalChange("customerName", e.target.value)
+              }
+              placeholder="Name..."
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between">
+            <h3 className="font-bold text-lg flex gap-2">
+              <Database className="text-indigo-600" /> Services
+            </h3>
+            <button
+              onClick={() =>
+                setServices([
+                  ...services,
+                  {
+                    id: Date.now(),
+                    offering: dbOffering[0].Offering,
+                    slc: "M1A",
+                    startDate: initialDates.start,
+                    endDate: initialDates.end,
+                    duration: 12,
+                    qty: 1,
+                    unitCostUSD: 0,
+                    unitCostLocal: 0,
+                  },
+                ])
+              }
+              className="bg-indigo-600 text-white px-3 py-1 rounded text-sm font-bold"
+            >
+              + Add
+            </button>
+          </div>
+          <div className="overflow-auto pb-4">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100 text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3">Offering</th>
+                  <th className="px-4 py-3">SLC</th>
+                  <th className="px-4 py-3 text-right">Start</th>
+                  <th className="px-4 py-3 text-right">End</th>
+                  <th className="px-4 py-3 text-right">Dur</th>
+                  <th className="px-4 py-3 text-right">Qty</th>
+                  <th className="px-4 py-3 text-right">Unit Cost</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {services.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <select
+                        className="w-full bg-transparent"
+                        value={s.offering}
+                        onChange={(e) =>
+                          updateService(s.id, "offering", e.target.value)
+                        }
+                      >
+                        {dbOffering.map((o, i) => (
+                          <option key={i} value={o.Offering}>
+                            {o.Offering}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        className="bg-transparent"
+                        value={s.slc}
+                        onChange={(e) =>
+                          updateService(s.id, "slc", e.target.value)
+                        }
+                      >
+                        {filteredSLCs.map((l, i) => (
+                          <option key={i} value={l.SLC}>
+                            {l.SLC}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="date"
+                        value={s.startDate}
+                        onChange={(e) =>
+                          updateService(s.id, "startDate", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="date"
+                        value={s.endDate}
+                        onChange={(e) =>
+                          updateService(s.id, "endDate", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">{s.duration}</td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="number"
+                        className="w-16 bg-slate-100 rounded text-right"
+                        value={s.qty}
+                        onChange={(e) =>
+                          updateService(s.id, "qty", Number(e.target.value))
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="number"
+                        className="w-20 bg-slate-100 rounded text-right"
+                        value={s.unitCostUSD}
+                        onChange={(e) =>
+                          updateService(
+                            s.id,
+                            "unitCostUSD",
+                            Number(e.target.value)
+                          )
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold">
+                      {new Intl.NumberFormat("en-US", {
+                        style: "decimal",
+                        minimumFractionDigits: 0,
+                      }).format(calculateServiceTotal(s))}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() =>
+                          setServices(services.filter((x) => x.id !== s.id))
+                        }
+                        className="text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between">
+            <h3 className="font-bold text-lg flex gap-2">
+              <Settings className="text-orange-600" /> Management
+            </h3>
+            <button
+              onClick={() =>
+                setManagements([
+                  ...managements,
+                  {
+                    id: Date.now(),
+                    mode: "Machine Category",
+                    categoryDef: activeLPLAT[0].Def,
+                    hours: 0,
+                    startDate: initialDates.start,
+                    endDate: initialDates.end,
+                    duration: 12,
+                  },
+                ])
+              }
+              className="bg-orange-600 text-white px-3 py-1 rounded text-sm font-bold"
+            >
+              + Add
+            </button>
+          </div>
+          <div className="overflow-auto pb-4">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100 text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3">Mode</th>
+                  <th className="px-4 py-3">Selection</th>
+                  <th className="px-4 py-3 text-right">Rate</th>
+                  <th className="px-4 py-3 text-right">Hours</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {managements.map((m) => (
+                  <tr key={m.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <label className="flex gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            checked={m.mode === "Machine Category"}
+                            onChange={() =>
+                              updateManagement(m.id, "mode", "Machine Category")
+                            }
+                          />
+                          <span className="text-[10px]">M.CAT</span>
+                        </label>
+                        <label className="flex gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            checked={m.mode === "Brand Rate Full"}
+                            onChange={() =>
+                              updateManagement(m.id, "mode", "Brand Rate Full")
+                            }
+                          />
+                          <span className="text-[10px]">B.RATE</span>
+                        </label>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        className="w-full bg-transparent"
+                        value={m.categoryDef}
+                        onChange={(e) =>
+                          updateManagement(m.id, "categoryDef", e.target.value)
+                        }
+                      >
+                        {(m.mode === "Machine Category"
+                          ? activeLPLAT
+                          : dbLband
+                        ).map((o, i) => (
+                          <option key={i} value={o.Def}>
+                            {o.Def} - {o.Plat}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {getManagementRate(m.categoryDef, m.mode).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="number"
+                        className="w-16 bg-slate-100 rounded text-right"
+                        value={m.hours}
+                        onChange={(e) =>
+                          updateManagement(
+                            m.id,
+                            "hours",
+                            Number(e.target.value)
+                          )
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold">
+                      {new Intl.NumberFormat("en-US", {
+                        style: "decimal",
+                        minimumFractionDigits: 0,
+                      }).format(calculateManagementTotal(m))}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() =>
+                          setManagements(
+                            managements.filter((x) => x.id !== m.id)
+                          )
+                        }
+                        className="text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border">
+            <h3 className="font-bold mb-4 flex gap-2">
+              <TrendingUp className="text-green-500" /> Financial Summary
+            </h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <XAxis dataKey="name" />
+                  <Tooltip />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={["#3b82f6", "#f97316", "#94a3b8"][index % 3]}
+                      />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="center"
+                      fill="black"
+                      style={{ fontWeight: "bold" }}
+                      formatter={(v) =>
+                        grandTotal > 0
+                          ? `${((v / grandTotal) * 100).toFixed(0)}%`
+                          : ""
+                      }
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="bg-slate-900 text-white p-8 rounded-2xl flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex justify-between border-b border-slate-700 pb-2">
+                <span>Services</span>
+                <span className="font-bold">
+                  ${new Intl.NumberFormat("en-US").format(totalServices)}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-700 pb-2">
+                <span>Management</span>
+                <span className="font-bold">
+                  ${new Intl.NumberFormat("en-US").format(totalManagement)}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-400 text-sm">
+                <span>Risk/Tax</span>
+                <span>
+                  $
+                  {new Intl.NumberFormat("en-US").format(
+                    contingencyAmount + taxAmount
+                  )}
+                </span>
+              </div>
+            </div>
+            <div className="pt-6">
+              <div className="text-xs text-green-400 font-bold mb-1">
+                GRAND TOTAL
+              </div>
+              <div className="text-4xl font-black text-green-400">
+                ${new Intl.NumberFormat("en-US").format(grandTotal)}
+              </div>
+              <button
+                onClick={handleSaveToCloud}
+                className="mt-6 w-full bg-green-500 text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-400 transition"
+              >
+                <Cloud size={20} /> Save Quote
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
