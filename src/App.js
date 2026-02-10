@@ -955,18 +955,21 @@ const App = () => {
           u.categoryDef = (
             v === "Machine Category" ? activeLPLAT : dbLband
           )[0]?.Def;
+        // --- ⚡ MEJORA: Recalcular duración al cambiar fechas en Management ---
         if (f === "startDate" || f === "endDate")
-          u.duration = calculateDuration(u.startDate, u.endDate);
+          u.duration = calculateDuration(
+            f === "startDate" ? v : m.startDate,
+            f === "endDate" ? v : m.endDate
+          );
         return u;
       })
     );
   const calculateManagementTotal = (m) => {
     const r = getManagementRate(m.categoryDef, m.mode);
-    return (
-      (globalConfig.currency === "USD" ? r / globalConfig.exchangeRate : r) *
-      m.hours *
-      m.duration
-    );
+    const rateConverted =
+      globalConfig.currency === "USD" ? r / globalConfig.exchangeRate : r;
+    // --- ⚡ MEJORA: Fórmula RATE * HOURS * DUR ---
+    return rateConverted * m.hours * m.duration;
   };
 
   const totalServices = services.reduce(
@@ -996,7 +999,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51
+            LACOSTWEB V51.1
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1140,7 +1143,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51
+              <IbmLogo /> IBM Costing V51.1
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1446,6 +1449,7 @@ const App = () => {
           </div>
         </div>
 
+        {/* --- ⚡ TABLA MANAGEMENT MEJORADA CON START/END/DUR --- */}
         <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
           <div className="px-6 py-4 border-b bg-slate-50 flex justify-between">
             <h3 className="font-bold text-lg flex gap-2">
@@ -1477,6 +1481,10 @@ const App = () => {
                 <tr>
                   <th className="px-4 py-3">Mode</th>
                   <th className="px-4 py-3">Selection</th>
+                  {/* Nuevas Columnas */}
+                  <th className="px-4 py-3 text-right">Start</th>
+                  <th className="px-4 py-3 text-right">End</th>
+                  <th className="px-4 py-3 text-right">Dur</th>
                   <th className="px-4 py-3 text-right">Rate</th>
                   <th className="px-4 py-3 text-right">Hours</th>
                   <th className="px-4 py-3 text-right">Total</th>
@@ -1528,6 +1536,31 @@ const App = () => {
                         ))}
                       </select>
                     </td>
+                    {/* INPUTS DE FECHA Y DURACIÓN */}
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="date"
+                        className="text-xs"
+                        value={m.startDate}
+                        onChange={(e) =>
+                          updateManagement(m.id, "startDate", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="date"
+                        className="text-xs"
+                        value={m.endDate}
+                        onChange={(e) =>
+                          updateManagement(m.id, "endDate", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {m.duration}
+                    </td>
+
                     <td className="px-4 py-3 text-right">
                       {getManagementRate(m.categoryDef, m.mode).toFixed(2)}
                     </td>
