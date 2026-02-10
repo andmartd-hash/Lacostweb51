@@ -991,10 +991,13 @@ const App = () => {
   const contingencyAmount = subTotal * globalConfig.contingency;
   const taxAmount = subTotal * globalConfig.tax;
   const grandTotal = subTotal + contingencyAmount + taxAmount;
+  
+  // --- ⚡ CORRECCIÓN: SEPARAR RISK Y TAX EN EL CHART ---
   const chartData = [
     { name: "Services", value: totalServices },
     { name: "Management", value: totalManagement },
-    { name: "Risk/Tax", value: contingencyAmount + taxAmount },
+    { name: "Risk", value: contingencyAmount }, // Separado
+    { name: "Tax", value: taxAmount },          // Separado
   ];
 
   // --- RENDER LOGIN SCREEN IF NOT LOGGED IN ---
@@ -1006,7 +1009,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51.2
+            LACOSTWEB V51.3
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1150,7 +1153,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51.2
+              <IbmLogo /> IBM Costing V51.3
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1560,7 +1563,6 @@ const App = () => {
                     </td>
 
                     <td className="px-4 py-3 text-right">
-                      {/* --- CORRECCIÓN: RATE FORMATEADO --- */}
                       {formatCurrency(
                         getManagementRate(m.categoryDef, m.mode)
                       )}
@@ -1580,7 +1582,6 @@ const App = () => {
                       />
                     </td>
                     <td className="px-4 py-3 text-right font-bold">
-                      {/* --- CORRECCIÓN: TOTAL FORMATEADO --- */}
                       {formatCurrency(calculateManagementTotal(m))}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -1616,7 +1617,7 @@ const App = () => {
                     {chartData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={["#3b82f6", "#f97316", "#94a3b8"][index % 3]}
+                        fill={["#3b82f6", "#f97316", "#eab308", "#64748b"][index % 4]}
                       />
                     ))}
                     <LabelList
@@ -1649,10 +1650,17 @@ const App = () => {
                   ${formatCurrency(totalManagement)}
                 </span>
               </div>
-              <div className="flex justify-between text-slate-400 text-sm">
-                <span>Risk/Tax</span>
+              {/* --- ⚡ SEPARACIÓN VISUAL DE RISK Y TAX --- */}
+              <div className="flex justify-between text-yellow-500 text-sm">
+                <span>Risk (Contingency)</span>
                 <span>
-                  ${formatCurrency(contingencyAmount + taxAmount)}
+                  ${formatCurrency(contingencyAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-400 text-sm">
+                <span>Tax</span>
+                <span>
+                  ${formatCurrency(taxAmount)}
                 </span>
               </div>
             </div>
