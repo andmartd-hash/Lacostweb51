@@ -34,6 +34,7 @@ import {
   LogOut,
   User,
   Lock,
+  Clock,
 } from "lucide-react";
 
 // --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
@@ -991,28 +992,40 @@ const App = () => {
   const contingencyAmount = subTotal * globalConfig.contingency;
   const taxAmount = subTotal * globalConfig.tax;
   const grandTotal = subTotal + contingencyAmount + taxAmount;
-  
+
+  // --- ⚡ MEJORA: CÁLCULO DE DURACIÓN MÁXIMA DEL CONTRATO ---
+  const totalContractDuration = Math.max(
+    services.reduce((max, s) => Math.max(max, s.duration || 0), 0),
+    managements.reduce((max, m) => Math.max(max, m.duration || 0), 0)
+  );
+
   // --- ⚡ CORRECCIÓN: LABEL DEL CHART AHORA MUESTRA EL PARÁMETRO CONFIGURADO ---
   const chartData = [
-    { 
-      name: "Services", 
-      value: totalServices, 
-      label: grandTotal > 0 ? `${((totalServices / grandTotal) * 100).toFixed(0)}%` : "0%" 
+    {
+      name: "Services",
+      value: totalServices,
+      label:
+        grandTotal > 0
+          ? `${((totalServices / grandTotal) * 100).toFixed(0)}%`
+          : "0%",
     },
-    { 
-      name: "Management", 
-      value: totalManagement, 
-      label: grandTotal > 0 ? `${((totalManagement / grandTotal) * 100).toFixed(0)}%` : "0%" 
+    {
+      name: "Management",
+      value: totalManagement,
+      label:
+        grandTotal > 0
+          ? `${((totalManagement / grandTotal) * 100).toFixed(0)}%`
+          : "0%",
     },
-    { 
-      name: "Risk", 
-      value: contingencyAmount, 
-      label: `${(globalConfig.contingency * 100).toFixed(1)}%` // Muestra 9.0% directo
+    {
+      name: "Risk",
+      value: contingencyAmount,
+      label: `${(globalConfig.contingency * 100).toFixed(1)}%`, // Muestra 9.0% directo
     },
-    { 
-      name: "Tax", 
-      value: taxAmount, 
-      label: `${(globalConfig.tax * 100).toFixed(1)}%` 
+    {
+      name: "Tax",
+      value: taxAmount,
+      label: `${(globalConfig.tax * 100).toFixed(1)}%`,
     },
   ];
 
@@ -1025,7 +1038,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51.3
+            LACOSTWEB V51.4
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1169,7 +1182,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51.3
+              <IbmLogo /> IBM Costing V51.4
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1633,7 +1646,11 @@ const App = () => {
                     {chartData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={["#3b82f6", "#f97316", "#eab308", "#64748b"][index % 4]}
+                        fill={
+                          ["#3b82f6", "#f97316", "#eab308", "#64748b"][
+                            index % 4
+                          ]
+                        }
                       />
                     ))}
                     <LabelList
@@ -1664,24 +1681,31 @@ const App = () => {
               {/* --- ⚡ SEPARACIÓN VISUAL DE RISK Y TAX --- */}
               <div className="flex justify-between text-yellow-500 text-sm">
                 <span>Risk (Contingency)</span>
-                <span>
-                  ${formatCurrency(contingencyAmount)}
-                </span>
+                <span>${formatCurrency(contingencyAmount)}</span>
               </div>
               <div className="flex justify-between text-slate-400 text-sm">
                 <span>Tax</span>
-                <span>
-                  ${formatCurrency(taxAmount)}
-                </span>
+                <span>${formatCurrency(taxAmount)}</span>
               </div>
             </div>
             <div className="pt-6">
               <div className="text-xs text-green-400 font-bold mb-1">
                 GRAND TOTAL
               </div>
-              <div className="text-4xl font-black text-green-400">
+              <div className="text-4xl font-black text-green-400 mb-4">
                 ${formatCurrency(grandTotal)}
               </div>
+
+              {/* --- NUEVO CAMPO: TOTAL CONTRACT DURATION --- */}
+              <div className="flex justify-between items-center border-t border-slate-700 pt-4 mb-6">
+                <span className="text-sm font-bold text-slate-300 flex gap-2 items-center">
+                  <Clock size={16} /> Total Contract Duration
+                </span>
+                <span className="text-xl font-bold text-white">
+                  {totalContractDuration} Months
+                </span>
+              </div>
+
               <button
                 onClick={handleSaveToCloud}
                 className="mt-6 w-full bg-green-500 text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-400 transition"
