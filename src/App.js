@@ -6,7 +6,14 @@ import {
   onAuthStateChanged,
   signOut,
 } from "firebase/auth";
-import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  onSnapshot,
+  collection,
+  getDocs,
+} from "firebase/firestore";
 import {
   BarChart,
   Bar,
@@ -36,6 +43,8 @@ import {
   Lock,
   Clock,
   CheckCircle2,
+  Search, // Importamos icono de búsqueda
+  FileText,
 } from "lucide-react";
 
 // --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
@@ -121,7 +130,6 @@ const parseRawFloat = (val) => {
   return parseFloat(clean) || 0;
 };
 
-// --- NUEVA FUNCIÓN DE FORMATO ESTÁNDAR ---
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat("en-US", {
     style: "decimal",
@@ -492,7 +500,6 @@ const App = () => {
   const initialDates = getInitialDates();
 
   // --- 🔒 LOGIN & AUTH STATE ---
-  // CORRECCIÓN: Inicializar estado desde localStorage para persistencia
   const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => {
     return localStorage.getItem("lacostweb_app_logged_in") === "true";
   });
@@ -518,6 +525,12 @@ const App = () => {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [firebaseConfigInput, setFirebaseConfigInput] = useState("");
   const [masterDataSynced, setMasterDataSynced] = useState(false);
+
+  // SEARCH MODAL STATES
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // UI STATES
   const [globalConfig, setGlobalConfig] = useState({
@@ -654,16 +667,16 @@ const App = () => {
       setUserRole("admin");
       setIsAppLoggedIn(true);
       setLoginError("");
-      // Guardar sesión en localStorage
       localStorage.setItem("lacostweb_app_logged_in", "true");
       localStorage.setItem("lacostweb_user_role", "admin");
+      localStorage.setItem("lacostweb_user_name", "Admin");
     } else if (loginUser === "User" && loginPass === "12345") {
       setUserRole("user");
       setIsAppLoggedIn(true);
       setLoginError("");
-      // Guardar sesión en localStorage
       localStorage.setItem("lacostweb_app_logged_in", "true");
       localStorage.setItem("lacostweb_user_role", "user");
+      localStorage.setItem("lacostweb_user_name", "User");
     } else {
       setLoginError("Credenciales inválidas. Intente nuevamente.");
     }
@@ -674,89 +687,63 @@ const App = () => {
     setLoginUser("");
     setLoginPass("");
     setUserRole("user");
-    // Limpiar sesión de localStorage
     localStorage.removeItem("lacostweb_app_logged_in");
     localStorage.removeItem("lacostweb_user_role");
+    localStorage.removeItem("lacostweb_user_name");
   };
 
-  // --- HELPER: GUARDAR TABLAS GLOBALES EN NUBE ---
-  const saveMasterTablesToCloud = async (tableName, newData) => {
+  // --- ⚡ HANDLER: SEARCH QUOTES ---
+  const handleSearchQuotes = async () => {
     if (!globalDb) return;
-    const masterDocRef = doc(
-      globalDb,
-      "artifacts",
-      appId,
-      "public",
-      "data",
-      "settings",
-      "master_tables"
-    );
-    const keyMap = {
-      OFFERING: "dbOffering",
-      SLC: "dbSlc",
-      LPLAT_GLOBAL: "dbLplatGlobal",
-      LPLAT_BRAZIL: "dbLplatBrazil",
-      LBAND: "dbLband",
-      COUNTRIES: "dbCountries",
-      RISK: "dbRisk",
-    };
-    const dbKey = keyMap[tableName];
-    if (dbKey) {
-      try {
-        await setDoc(masterDocRef, { [dbKey]: newData }, { merge: true });
-      } catch (e) {
-        console.error("Error updating master table:", e);
-      }
-    }
-  };
-
-  const handleConnectFirebase = async () => {
+    setSearchLoading(true);
+    setSearchResults([]);
+    
     try {
-      let cleanInput = firebaseConfigInput.trim();
-      if (cleanInput.includes("="))
-        cleanInput = cleanInput.split("=")[1].trim();
-      if (cleanInput.endsWith(";") || cleanInput.endsWith(","))
-        cleanInput = cleanInput.slice(0, -1).trim();
-      const fixedJson = cleanInput
-        .replace(
-          /(apiKey|authDomain|projectId|storageBucket|messagingSenderId|appId|measurementId)\s*:/g,
-          '"$1":'
-        )
-        .replace(/'/g, '"')
-        .replace(/,\s*}/g, "}");
-      let config;
-      try {
-        config = JSON.parse(fixedJson);
-      } catch (e) {
-        throw new Error("JSON Inválido.");
-      }
-      if (!getApps().length) {
-        const app = initializeApp(config);
-        globalAuth = getAuth(app);
-        globalDb = getFirestore(app);
-        await signInAnonymously(globalAuth);
-        localStorage.setItem(
-          "lacostweb_firebase_config",
-          JSON.stringify(config)
-        );
-        onAuthStateChanged(globalAuth, setUser);
-        alert("✅ Conectado.");
-        setShowConfigModal(false);
-      } else {
-        alert("⚠️ Reinicia la página.");
-      }
+      const quotesRef = collection(globalDb, "artifacts", appId, "public", "data", "quotes");
+      // Rule 2: No complex queries. Fetch all and filter in memory.
+      const querySnapshot = await getDocs(quotesRef);
+      const allQuotes = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        allQuotes.push({ 
+          id: doc.id, 
+          ...data 
+        });
+      });
+
+      // Filter based on Role and Search Term
+      const filtered = allQuotes.filter(q => {
+        // Text Match
+        const matchesTerm = 
+          q.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          (q.globalConfig?.customerName || "").toLowerCase().includes(searchTerm.toLowerCase());
+
+        // Role Permission
+        if (userRole === 'admin') {
+          return matchesTerm; // Admin sees all
+        } else {
+          // User sees only their own (created by 'User')
+          // Using creatorName for consistency with the login system
+          return matchesTerm && q.creatorName === 'User';
+        }
+      });
+
+      setSearchResults(filtered);
     } catch (e) {
-      alert("❌ Error: " + e.message);
+      console.error("Search error:", e);
+      alert("Error searching quotes");
+    } finally {
+      setSearchLoading(false);
     }
   };
 
-  const handleDisconnectFirebase = () => {
-    if (window.confirm("¿Desconectar?")) {
-      localStorage.removeItem("lacostweb_firebase_config");
-      window.location.reload();
-    }
+  const handleOpenQuote = (quoteId) => {
+    setGlobalConfig(prev => ({ ...prev, idCotizacion: quoteId }));
+    setIsSearchModalOpen(false);
   };
 
+  // --- HELPER: SAVE TO CLOUD ---
   const handleSaveToCloud = async () => {
     if (!user || !globalDb) {
       setLastSaved(new Date());
@@ -773,12 +760,17 @@ const App = () => {
         "quotes",
         globalConfig.idCotizacion
       );
+      
+      // Get current login name from storage or state
+      const currentCreator = localStorage.getItem("lacostweb_user_name") || "Unknown";
+
       await setDoc(quoteDocRef, {
         services,
         managements,
         globalConfig,
         lastUpdated: new Date().toISOString(),
-        savedBy: user.uid,
+        savedBy: user.uid, // Technical ID
+        creatorName: currentCreator, // Readable Name for Admin Search
       });
       setLastSaved(new Date());
       alert(`☁️ Cotización guardada! ID: ${globalConfig.idCotizacion}`);
@@ -1008,13 +1000,11 @@ const App = () => {
   const taxAmount = subTotal * globalConfig.tax;
   const grandTotal = subTotal + contingencyAmount + taxAmount;
 
-  // --- ⚡ MEJORA: CÁLCULO DE DURACIÓN MÁXIMA DEL CONTRATO ---
   const totalContractDuration = Math.max(
     services.reduce((max, s) => Math.max(max, s.duration || 0), 0),
     managements.reduce((max, m) => Math.max(max, m.duration || 0), 0)
   );
 
-  // --- ⚡ CORRECCIÓN: LABEL DEL CHART AHORA MUESTRA EL PARÁMETRO CONFIGURADO ---
   const chartData = [
     {
       name: "Services",
@@ -1035,7 +1025,7 @@ const App = () => {
     {
       name: "Risk",
       value: contingencyAmount,
-      label: `${(globalConfig.contingency * 100).toFixed(1)}%`, // Muestra 9.0% directo
+      label: `${(globalConfig.contingency * 100).toFixed(1)}%`, 
     },
     {
       name: "Tax",
@@ -1044,7 +1034,6 @@ const App = () => {
     },
   ];
 
-  // --- RENDER LOGIN SCREEN IF NOT LOGGED IN ---
   if (!isAppLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -1122,6 +1111,88 @@ const App = () => {
   // --- MAIN APP RENDER ---
   return (
     <div className="min-h-screen pb-32 relative bg-slate-50 p-4">
+      
+      {/* --- SEARCH MODAL --- */}
+      {isSearchModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-8 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden mt-10">
+            <div className="bg-indigo-600 p-6 flex justify-between items-center text-white">
+              <h3 className="font-bold text-xl flex items-center gap-2">
+                <Search size={24} /> Search Quotes
+              </h3>
+              <button onClick={() => setIsSearchModalOpen(false)} className="hover:bg-indigo-700 p-1 rounded">
+                <X />
+              </button>
+            </div>
+            <div className="p-6 bg-slate-50 border-b">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 text-slate-400" size={20} />
+                  <input
+                    className="w-full pl-10 p-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="Search by ID or Customer Name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchQuotes()}
+                  />
+                </div>
+                <button 
+                  onClick={handleSearchQuotes}
+                  className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition"
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto p-4 bg-white">
+              {searchLoading ? (
+                <div className="text-center py-10 text-slate-500">Loading...</div>
+              ) : searchResults.length > 0 ? (
+                <div className="grid gap-3">
+                  {searchResults.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleOpenQuote(item.id)}
+                      className="text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:shadow-md transition bg-white group"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-indigo-900 flex items-center gap-2">
+                            <FileText size={16} /> {item.id}
+                          </div>
+                          <div className="text-sm text-slate-600 mt-1 font-medium">
+                            {item.globalConfig?.customerName || "No Customer Name"}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                            <span>📅 {new Date(item.lastUpdated || Date.now()).toLocaleDateString()}</span>
+                            {/* Admin sees creator */}
+                            {userRole === 'admin' && (
+                              <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">
+                                By: {item.creatorName || "Unknown"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-3 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-bold">
+                            Select
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-slate-400 flex flex-col items-center">
+                  <Database size={48} className="mb-2 opacity-20" />
+                  No results found.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showConfigModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
@@ -1208,6 +1279,15 @@ const App = () => {
                   handleGlobalChange("idCotizacion", e.target.value)
                 }
               />
+              
+              {/* --- ⚡ BOTÓN DE BÚSQUEDA --- */}
+              <button
+                onClick={() => setIsSearchModalOpen(true)}
+                className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded font-bold text-xs flex items-center gap-1 border border-indigo-200 hover:bg-indigo-200 transition"
+              >
+                <Search size={12} /> Find / Open
+              </button>
+
               <button
                 onClick={handleShareLink}
                 className="bg-blue-100 text-blue-700 px-2 rounded text-xs font-bold py-1"
