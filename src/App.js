@@ -35,6 +35,7 @@ import {
   User,
   Lock,
   Clock,
+  CheckCircle2,
 } from "lucide-react";
 
 // --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
@@ -169,7 +170,7 @@ const INITIAL_COUNTRIES = [
 const INITIAL_RISK = [
   { Risk: "Low", Contingency: 0.02 },
   { Risk: "Medium", Contingency: 0.05 },
-  { Risk: "High", Contingency: 0.09 }, // UPDATED to 0.09
+  { Risk: "High", Contingency: 0.09 },
 ];
 
 const INITIAL_OFFERING = [
@@ -1038,7 +1039,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51.4
+            LACOSTWEB V51.5
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1182,7 +1183,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51.4
+              <IbmLogo /> IBM Costing V51.5
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1375,15 +1376,15 @@ const App = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-xs uppercase">
                 <tr>
-                  <th className="px-4 py-3">Offering</th>
-                  <th className="px-4 py-3">SLC</th>
-                  <th className="px-4 py-3 text-right">Start</th>
-                  <th className="px-4 py-3 text-right">End</th>
-                  <th className="px-4 py-3 text-right">Dur</th>
-                  <th className="px-4 py-3 text-right">Qty</th>
-                  <th className="px-4 py-3 text-right">Unit Cost</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3"></th>
+                  <th className="px-4 py-3 w-[25%]">Offering</th>
+                  <th className="px-4 py-3 w-[10%]">SLC</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Start</th>
+                  <th className="px-4 py-3 text-right w-[10%]">End</th>
+                  <th className="px-4 py-3 text-right w-[5%]">Dur</th>
+                  <th className="px-4 py-3 text-right w-[8%]">Qty</th>
+                  <th className="px-4 py-3 text-right w-[12%]">Unit Cost</th>
+                  <th className="px-4 py-3 text-right w-[15%]">Total</th>
+                  <th className="px-4 py-3 w-[5%]"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1391,7 +1392,7 @@ const App = () => {
                   <tr key={s.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <select
-                        className="w-full bg-transparent"
+                        className="w-full bg-transparent text-ellipsis overflow-hidden"
                         value={s.offering}
                         onChange={(e) =>
                           updateService(s.id, "offering", e.target.value)
@@ -1406,7 +1407,7 @@ const App = () => {
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        className="bg-transparent"
+                        className="w-full bg-transparent"
                         value={s.slc}
                         onChange={(e) =>
                           updateService(s.id, "slc", e.target.value)
@@ -1422,6 +1423,7 @@ const App = () => {
                     <td className="px-4 py-3 text-right">
                       <input
                         type="date"
+                        className="w-full bg-transparent text-right"
                         value={s.startDate}
                         onChange={(e) =>
                           updateService(s.id, "startDate", e.target.value)
@@ -1431,17 +1433,20 @@ const App = () => {
                     <td className="px-4 py-3 text-right">
                       <input
                         type="date"
+                        className="w-full bg-transparent text-right"
                         value={s.endDate}
                         onChange={(e) =>
                           updateService(s.id, "endDate", e.target.value)
                         }
                       />
                     </td>
-                    <td className="px-4 py-3 text-right">{s.duration}</td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {s.duration}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <input
                         type="number"
-                        className="w-16 bg-slate-100 rounded text-right"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
                         value={s.qty}
                         onChange={(e) =>
                           updateService(s.id, "qty", Number(e.target.value))
@@ -1451,7 +1456,7 @@ const App = () => {
                     <td className="px-4 py-3 text-right">
                       <input
                         type="number"
-                        className="w-20 bg-slate-100 rounded text-right"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
                         value={s.unitCostUSD}
                         onChange={(e) =>
                           updateService(
@@ -1462,7 +1467,7 @@ const App = () => {
                         }
                       />
                     </td>
-                    <td className="px-4 py-3 text-right font-bold">
+                    <td className="px-4 py-3 text-right font-bold text-indigo-700">
                       {formatCurrency(calculateServiceTotal(s))}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -1470,7 +1475,7 @@ const App = () => {
                         onClick={() =>
                           setServices(services.filter((x) => x.id !== s.id))
                         }
-                        className="text-red-500"
+                        className="text-red-400 hover:text-red-600 transition"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1511,41 +1516,47 @@ const App = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-xs uppercase">
                 <tr>
-                  <th className="px-4 py-3">Mode</th>
-                  <th className="px-4 py-3">Selection</th>
-                  <th className="px-4 py-3 text-right">Start</th>
-                  <th className="px-4 py-3 text-right">End</th>
-                  <th className="px-4 py-3 text-right">Dur</th>
-                  <th className="px-4 py-3 text-right">Rate</th>
-                  <th className="px-4 py-3 text-right">Hours</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3"></th>
+                  <th className="px-4 py-3 w-[15%]">Mode</th>
+                  <th className="px-4 py-3 w-[20%]">Selection</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Start</th>
+                  <th className="px-4 py-3 text-right w-[10%]">End</th>
+                  <th className="px-4 py-3 text-right w-[5%]">Dur</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Rate</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Hours</th>
+                  <th className="px-4 py-3 text-right w-[15%]">Total</th>
+                  <th className="px-4 py-3 w-[5%]"></th>
                 </tr>
               </thead>
               <tbody>
                 {managements.map((m) => (
                   <tr key={m.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <label className="flex gap-2 cursor-pointer">
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-1 cursor-pointer">
                           <input
                             type="radio"
+                            className="accent-orange-600"
                             checked={m.mode === "Machine Category"}
                             onChange={() =>
                               updateManagement(m.id, "mode", "Machine Category")
                             }
                           />
-                          <span className="text-[10px]">M.CAT</span>
+                          <span className="text-[10px] font-bold text-slate-600">
+                            M.CAT
+                          </span>
                         </label>
-                        <label className="flex gap-2 cursor-pointer">
+                        <label className="flex items-center gap-1 cursor-pointer">
                           <input
                             type="radio"
+                            className="accent-orange-600"
                             checked={m.mode === "Brand Rate Full"}
                             onChange={() =>
                               updateManagement(m.id, "mode", "Brand Rate Full")
                             }
                           />
-                          <span className="text-[10px]">B.RATE</span>
+                          <span className="text-[10px] font-bold text-slate-600">
+                            B.RATE
+                          </span>
                         </label>
                       </div>
                     </td>
@@ -1570,7 +1581,7 @@ const App = () => {
                     <td className="px-4 py-3 text-right">
                       <input
                         type="date"
-                        className="text-xs"
+                        className="w-full bg-transparent text-right"
                         value={m.startDate}
                         onChange={(e) =>
                           updateManagement(m.id, "startDate", e.target.value)
@@ -1580,7 +1591,7 @@ const App = () => {
                     <td className="px-4 py-3 text-right">
                       <input
                         type="date"
-                        className="text-xs"
+                        className="w-full bg-transparent text-right"
                         value={m.endDate}
                         onChange={(e) =>
                           updateManagement(m.id, "endDate", e.target.value)
@@ -1591,7 +1602,7 @@ const App = () => {
                       {m.duration}
                     </td>
 
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right font-mono text-slate-500">
                       {formatCurrency(
                         getManagementRate(m.categoryDef, m.mode)
                       )}
@@ -1599,7 +1610,7 @@ const App = () => {
                     <td className="px-4 py-3 text-right">
                       <input
                         type="number"
-                        className="w-16 bg-slate-100 rounded text-right"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
                         value={m.hours}
                         onChange={(e) =>
                           updateManagement(
@@ -1610,7 +1621,7 @@ const App = () => {
                         }
                       />
                     </td>
-                    <td className="px-4 py-3 text-right font-bold">
+                    <td className="px-4 py-3 text-right font-bold text-orange-700">
                       {formatCurrency(calculateManagementTotal(m))}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -1620,7 +1631,7 @@ const App = () => {
                             managements.filter((x) => x.id !== m.id)
                           )
                         }
-                        className="text-red-500"
+                        className="text-red-400 hover:text-red-600 transition"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1654,7 +1665,7 @@ const App = () => {
                       />
                     ))}
                     <LabelList
-                      dataKey="label" // Cambiado a 'label' pre-calculado
+                      dataKey="label"
                       position="center"
                       fill="black"
                       style={{ fontWeight: "bold" }}
@@ -1664,51 +1675,64 @@ const App = () => {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="bg-slate-900 text-white p-8 rounded-2xl flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex justify-between border-b border-slate-700 pb-2">
-                <span>Services</span>
-                <span className="font-bold">
+
+          {/* --- ⚡ CUADRO DE TOTALES REDISEÑADO --- */}
+          <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-2xl flex flex-col justify-between h-full">
+            {/* 1. Header con Duración */}
+            <div className="flex justify-between items-center border-b border-indigo-200 pb-4 mb-4">
+              <span className="text-sm font-bold text-indigo-900 flex gap-2 items-center">
+                <Clock size={18} className="text-indigo-500" /> Contract
+                Duration
+              </span>
+              <span className="text-xl font-bold text-indigo-700">
+                {totalContractDuration} Months
+              </span>
+            </div>
+
+            {/* 2. Breakdown */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-600 text-sm">Services</span>
+                <span className="font-bold text-slate-800">
                   ${formatCurrency(totalServices)}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-slate-700 pb-2">
-                <span>Management</span>
-                <span className="font-bold">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-600 text-sm">Management</span>
+                <span className="font-bold text-slate-800">
                   ${formatCurrency(totalManagement)}
                 </span>
               </div>
-              {/* --- ⚡ SEPARACIÓN VISUAL DE RISK Y TAX --- */}
-              <div className="flex justify-between text-yellow-500 text-sm">
-                <span>Risk (Contingency)</span>
-                <span>${formatCurrency(contingencyAmount)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-amber-600 text-sm flex items-center gap-1">
+                  <AlertCircle size={12} /> Risk (Contingency)
+                </span>
+                <span className="font-medium text-amber-700">
+                  ${formatCurrency(contingencyAmount)}
+                </span>
               </div>
-              <div className="flex justify-between text-slate-400 text-sm">
-                <span>Tax</span>
-                <span>${formatCurrency(taxAmount)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 text-sm">Tax</span>
+                <span className="font-medium text-slate-600">
+                  ${formatCurrency(taxAmount)}
+                </span>
               </div>
             </div>
-            <div className="pt-6">
-              <div className="text-xs text-green-400 font-bold mb-1">
-                GRAND TOTAL
-              </div>
-              <div className="text-4xl font-black text-green-400 mb-4">
-                ${formatCurrency(grandTotal)}
-              </div>
 
-              {/* --- NUEVO CAMPO: TOTAL CONTRACT DURATION --- */}
-              <div className="flex justify-between items-center border-t border-slate-700 pt-4 mb-6">
-                <span className="text-sm font-bold text-slate-300 flex gap-2 items-center">
-                  <Clock size={16} /> Total Contract Duration
-                </span>
-                <span className="text-xl font-bold text-white">
-                  {totalContractDuration} Months
-                </span>
+            {/* 3. Grand Total Footer */}
+            <div className="pt-6 border-t border-indigo-200 mt-6">
+              <div className="flex justify-between items-end mb-6">
+                <div className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                  Grand Total
+                </div>
+                <div className="text-3xl font-black text-indigo-900">
+                  ${formatCurrency(grandTotal)}
+                </div>
               </div>
 
               <button
                 onClick={handleSaveToCloud}
-                className="mt-6 w-full bg-green-500 text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-400 transition"
+                className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
               >
                 <Cloud size={20} /> Save Quote
               </button>
