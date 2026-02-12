@@ -492,8 +492,13 @@ const App = () => {
   const initialDates = getInitialDates();
 
   // --- 🔒 LOGIN & AUTH STATE ---
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState("user"); // 'admin' | 'user'
+  // CORRECCIÓN: Inicializar estado desde localStorage para persistencia
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => {
+    return localStorage.getItem("lacostweb_app_logged_in") === "true";
+  });
+  const [userRole, setUserRole] = useState(() => {
+    return localStorage.getItem("lacostweb_user_role") || "user";
+  });
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -649,10 +654,16 @@ const App = () => {
       setUserRole("admin");
       setIsAppLoggedIn(true);
       setLoginError("");
+      // Guardar sesión en localStorage
+      localStorage.setItem("lacostweb_app_logged_in", "true");
+      localStorage.setItem("lacostweb_user_role", "admin");
     } else if (loginUser === "User" && loginPass === "12345") {
       setUserRole("user");
       setIsAppLoggedIn(true);
       setLoginError("");
+      // Guardar sesión en localStorage
+      localStorage.setItem("lacostweb_app_logged_in", "true");
+      localStorage.setItem("lacostweb_user_role", "user");
     } else {
       setLoginError("Credenciales inválidas. Intente nuevamente.");
     }
@@ -663,6 +674,9 @@ const App = () => {
     setLoginUser("");
     setLoginPass("");
     setUserRole("user");
+    // Limpiar sesión de localStorage
+    localStorage.removeItem("lacostweb_app_logged_in");
+    localStorage.removeItem("lacostweb_user_role");
   };
 
   // --- HELPER: GUARDAR TABLAS GLOBALES EN NUBE ---
@@ -1039,7 +1053,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51.5
+            LACOSTWEB V51.6
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1183,7 +1197,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51.5
+              <IbmLogo /> IBM Costing V51.6
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
