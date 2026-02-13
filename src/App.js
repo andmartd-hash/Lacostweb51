@@ -48,6 +48,7 @@ import {
   Plus,
   Save,
   Info,
+  List, // Icono para lista
 } from "lucide-react";
 
 // --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
@@ -503,11 +504,12 @@ const App = () => {
   const initialDates = getInitialDates();
 
   // --- 🔒 LOGIN & AUTH STATE ---
+  // MODIFICACIÓN 1: Uso de sessionStorage para "limpiar cookies" al cerrar navegador
   const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => {
-    return localStorage.getItem("lacostweb_app_logged_in") === "true";
+    return sessionStorage.getItem("lacostweb_app_logged_in") === "true";
   });
   const [userRole, setUserRole] = useState(() => {
-    return localStorage.getItem("lacostweb_user_role") || "user";
+    return sessionStorage.getItem("lacostweb_user_role") || "user";
   });
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
@@ -677,23 +679,23 @@ const App = () => {
     return () => unsubscribe();
   }, [user, globalConfig.idCotizacion]);
 
-  // --- HANDLER: LOGIN ---
+  // --- HANDLER: LOGIN (Usa sessionStorage) ---
   const handleAppLogin = (e) => {
     e.preventDefault();
     if (loginUser === "Admin" && loginPass === "54321") {
       setUserRole("admin");
       setIsAppLoggedIn(true);
       setLoginError("");
-      localStorage.setItem("lacostweb_app_logged_in", "true");
-      localStorage.setItem("lacostweb_user_role", "admin");
-      localStorage.setItem("lacostweb_user_name", "Admin");
+      sessionStorage.setItem("lacostweb_app_logged_in", "true");
+      sessionStorage.setItem("lacostweb_user_role", "admin");
+      sessionStorage.setItem("lacostweb_user_name", "Admin");
     } else if (loginUser === "User" && loginPass === "12345") {
       setUserRole("user");
       setIsAppLoggedIn(true);
       setLoginError("");
-      localStorage.setItem("lacostweb_app_logged_in", "true");
-      localStorage.setItem("lacostweb_user_role", "user");
-      localStorage.setItem("lacostweb_user_name", "User");
+      sessionStorage.setItem("lacostweb_app_logged_in", "true");
+      sessionStorage.setItem("lacostweb_user_role", "user");
+      sessionStorage.setItem("lacostweb_user_name", "User");
     } else {
       setLoginError("Credenciales inválidas. Intente nuevamente.");
     }
@@ -704,9 +706,12 @@ const App = () => {
     setLoginUser("");
     setLoginPass("");
     setUserRole("user");
+    // Limpia sessionStorage (efecto de "borrar cookies")
+    sessionStorage.removeItem("lacostweb_app_logged_in");
+    sessionStorage.removeItem("lacostweb_user_role");
+    sessionStorage.removeItem("lacostweb_user_name");
+    // Limpieza adicional por seguridad
     localStorage.removeItem("lacostweb_app_logged_in");
-    localStorage.removeItem("lacostweb_user_role");
-    localStorage.removeItem("lacostweb_user_name");
   };
 
   // --- ⚡ HANDLER: SEARCH QUOTES ---
@@ -744,6 +749,9 @@ const App = () => {
           return matchesTerm && q.creatorName === 'User';
         }
       });
+
+      // Sort by lastUpdated desc
+      filtered.sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated));
 
       setSearchResults(filtered);
     } catch (e) {
@@ -1286,13 +1294,13 @@ const App = () => {
           </div>
       )}
       
-      {/* --- SEARCH MODAL --- */}
+      {/* --- SEARCH MODAL (IMPROVED LIST VIEW) --- */}
       {isSearchModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-8 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden mt-10">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden mt-10">
             <div className="bg-indigo-600 p-6 flex justify-between items-center text-white">
               <h3 className="font-bold text-xl flex items-center gap-2">
-                <Search size={24} /> Search Quotes
+                <List size={24} /> Search Quotes (List Mode)
               </h3>
               <button onClick={() => setIsSearchModalOpen(false)} className="hover:bg-indigo-700 p-1 rounded">
                 <X />
@@ -1318,44 +1326,58 @@ const App = () => {
                 </button>
               </div>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto p-4 bg-white">
+            <div className="max-h-[60vh] overflow-y-auto bg-white">
               {searchLoading ? (
                 <div className="text-center py-10 text-slate-500">Loading...</div>
               ) : searchResults.length > 0 ? (
-                <div className="grid gap-3">
-                  {searchResults.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleOpenQuote(item.id)}
-                      className="text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:shadow-md transition bg-white group"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-bold text-indigo-900 flex items-center gap-2">
-                            <FileText size={16} /> {item.id}
-                          </div>
-                          <div className="text-sm text-slate-600 mt-1 font-medium">
-                            {item.globalConfig?.customerName || "No Customer Name"}
-                          </div>
-                          <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
-                            <span>📅 {new Date(item.lastUpdated || Date.now()).toLocaleDateString()}</span>
-                            {/* Admin sees creator */}
-                            {userRole === 'admin' && (
-                              <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">
-                                By: {item.creatorName || "Unknown"}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="inline-block px-3 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-bold">
-                            Select
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-indigo-50 text-indigo-800 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 font-bold">Quote ID</th>
+                      <th className="px-6 py-3 font-bold">Customer</th>
+                      <th className="px-6 py-3 font-bold">Updated</th>
+                      {userRole === 'admin' && <th className="px-6 py-3 font-bold">Creator</th>}
+                      <th className="px-6 py-3 font-bold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchResults.map((item) => (
+                      <tr 
+                        key={item.id}
+                        className="border-b hover:bg-slate-50 transition cursor-pointer"
+                        onClick={() => handleOpenQuote(item.id)}
+                      >
+                        <td className="px-6 py-4 font-bold text-indigo-900 font-mono">
+                          {item.id}
+                        </td>
+                        <td className="px-6 py-4 text-slate-700">
+                          {item.globalConfig?.customerName || "No Name"}
+                        </td>
+                        <td className="px-6 py-4 text-slate-500">
+                          {new Date(item.lastUpdated || Date.now()).toLocaleDateString()}
+                        </td>
+                        {userRole === 'admin' && (
+                          <td className="px-6 py-4">
+                            <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs font-bold">
+                              {item.creatorName || "Unknown"}
+                            </span>
+                          </td>
+                        )}
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 font-bold text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenQuote(item.id);
+                            }}
+                          >
+                            Open
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               ) : (
                 <div className="text-center py-10 text-slate-400 flex flex-col items-center">
                   <Database size={48} className="mb-2 opacity-20" />
@@ -1516,7 +1538,7 @@ const App = () => {
               onClick={triggerClearAll}
               className="flex gap-2 px-4 py-2 text-red-600 border border-red-100 bg-red-50 rounded-lg hover:bg-red-100 text-sm font-bold"
             >
-              <RefreshCcw size={16} /> Reset
+              <RefreshCcw size={16} /> Clear
             </button>
 
             {/* --- LOGOUT BUTTON --- */}
