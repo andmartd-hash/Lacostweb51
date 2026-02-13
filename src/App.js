@@ -45,8 +45,9 @@ import {
   CheckCircle2,
   Search,
   FileText,
-  Plus, // Nuevo icono para crear
-  Save, // Nuevo icono para guardar
+  Plus,
+  Save,
+  Info,
 } from "lucide-react";
 
 // --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
@@ -159,7 +160,7 @@ const getQuoteIdFromUrl = () => {
       console.warn("Could not read URL params:", e);
     }
   }
-  return "COT-NUEVA"; // ID por defecto para nuevas
+  return "COT-NUEVA";
 };
 
 // --- INITIAL MASTER DATA ---
@@ -528,6 +529,10 @@ const App = () => {
   const [firebaseConfigInput, setFirebaseConfigInput] = useState("");
   const [masterDataSynced, setMasterDataSynced] = useState(false);
 
+  // NOTIFICATION & MODALS STATE
+  const [notification, setNotification] = useState({ show: false, message: "", type: "success" });
+  const [confirmModal, setConfirmModal] = useState({ show: false, message: "", action: null });
+
   // SEARCH MODAL STATES
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -578,6 +583,12 @@ const App = () => {
   const [importTarget, setImportTarget] = useState("OFFERING");
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState({ text: "", type: "" });
+
+  // --- HELPER: NOTIFICATIONS ---
+  const showNotification = (message, type = "success") => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification({ ...notification, show: false }), 4000);
+  };
 
   // --- EFFECT: UPDATE URL ---
   useEffect(() => {
@@ -737,7 +748,7 @@ const App = () => {
       setSearchResults(filtered);
     } catch (e) {
       console.error("Search error:", e);
-      alert("Error searching quotes");
+      showNotification("Error searching quotes", "error");
     } finally {
       setSearchLoading(false);
     }
@@ -748,71 +759,134 @@ const App = () => {
     setIsSearchModalOpen(false);
   };
 
-  // --- ⚡ HANDLER: NEW QUOTE ---
-  const handleNewQuote = () => {
-    if(window.confirm("¿Estás seguro de crear una nueva cotización? Se perderán los cambios no guardados.")) {
+  // --- ⚡ HANDLER: NEW QUOTE (FIXED) ---
+  const triggerNewQuote = () => {
+      setConfirmModal({
+          show: true,
+          message: "¿Estás seguro de crear una nueva cotización? Se perderán los cambios no guardados.",
+          action: performNewQuote
+      });
+  };
+
+  const performNewQuote = () => {
         const dates = getInitialDates();
-        setServices([
-            {
-              id: Date.now(),
-              offering: dbOffering[0].Offering,
-              slc: "M1A",
-              startDate: dates.start,
-              endDate: dates.end,
-              duration: 12,
-              qty: 1,
-              unitCostUSD: 0,
-              unitCostLocal: 0,
-            }
-        ]);
-        setManagements([
-            {
-              id: Date.now() + 1,
-              mode: "Machine Category",
-              categoryDef: "Mainframe",
-              hours: 0,
-              monthlyCost: 0,
-              startDate: dates.start,
-              endDate: dates.end,
-              duration: 12,
-            }
-        ]);
-        setGlobalConfig(prev => ({
-            ...prev,
-            idCotizacion: "COT-NUEVA",
-            customerName: "",
-        }));
-        setLastSaved(null);
-        alert("✨ Nueva cotización iniciada.");
-    }
+        
+        // 1. Force URL Clean first
+        if (typeof window !== "undefined") {
+            const url = new URL(window.location);
+            url.searchParams.set("id", "COT-NUEVA");
+            window.history.pushState({}, "", url);
+        }
+
+        // 2. Update State to Defaults (Wait a tick to let effects clear)
+        setTimeout(() => {
+            setServices([
+                {
+                  id: Date.now(),
+                  offering: dbOffering[0]?.Offering || "Service",
+                  slc: "M1A",
+                  startDate: dates.start,
+                  endDate: dates.end,
+                  duration: 12,
+                  qty: 1,
+                  unitCostUSD: 0,
+                  unitCostLocal: 0,
+                }
+            ]);
+            setManagements([
+                {
+                  id: Date.now() + 1,
+                  mode: "Machine Category",
+                  categoryDef: "Mainframe",
+                  hours: 0,
+                  monthlyCost: 0,
+                  startDate: dates.start,
+                  endDate: dates.end,
+                  duration: 12,
+                }
+            ]);
+            setGlobalConfig(prev => ({
+                ...prev,
+                idCotizacion: "COT-NUEVA",
+                customerName: "",
+            }));
+            setLastSaved(null);
+            showNotification("✨ Nueva cotización iniciada", "success");
+        }, 50);
+        
+        setConfirmModal({ show: false, message: "", action: null });
+  };
+
+  // --- ⚡ HANDLER: CLEAR ALL (FIXED) ---
+  const triggerClearAll = () => {
+    setConfirmModal({
+        show: true,
+        message: "¿Reiniciar el formulario a valores por defecto?",
+        action: performClearAll
+    });
+  };
+
+  const performClearAll = () => {
+      const dates = getInitialDates();
+      setServices([
+        {
+          id: Date.now(),
+          offering: dbOffering[0]?.Offering || "Service",
+          slc: "M1A",
+          startDate: dates.start,
+          endDate: dates.end,
+          duration: 12,
+          qty: 1,
+          unitCostUSD: 0,
+          unitCostLocal: 0,
+        }
+      ]);
+      setManagements([
+        {
+          id: Date.now() + 1,
+          mode: "Machine Category",
+          categoryDef: "Mainframe",
+          hours: 0,
+          monthlyCost: 0,
+          startDate: dates.start,
+          endDate: dates.end,
+          duration: 12,
+        }
+      ]);
+      setConfirmModal({ show: false, message: "", action: null });
+      showNotification("🧹 Formulario reiniciado", "success");
   };
 
   // --- HELPER: SAVE TO CLOUD (WITH AUTO-NUMBERING) ---
   const handleSaveToCloud = async () => {
     if (!user || !globalDb) {
       setLastSaved(new Date());
-      alert("💾 Guardado LOCALMENTE (Offline).");
+      showNotification("💾 Guardado LOCALMENTE (Offline).", "warning");
       return;
     }
     try {
       let currentId = globalConfig.idCotizacion;
 
-      // --- LOGICA DE CONSECUTIVO INTELIGENTE ---
-      // Si el ID es "COT-NUEVA" o no cumple el formato estándar (COT-Rol-Numero), generamos uno nuevo
+      // --- LOGICA DE CONSECUTIVO INTELIGENTE (MAX + 1) ---
       const isNewOrTemp = currentId === "COT-NUEVA" || !currentId.match(/^COT-(Adm|Usr)-\d{6}$/);
 
       if (isNewOrTemp) {
-          // 1. Obtenemos todas las cotizaciones para contar (Simulación de contador atómico en entorno restringido)
           const quotesRef = collection(globalDb, "artifacts", appId, "public", "data", "quotes");
           const snapshot = await getDocs(quotesRef);
           
-          // 2. Calculamos el siguiente número (Total + 1)
-          // Nota: En producción real con alta concurrencia usaríamos transacciones o un documento contador dedicado.
-          const nextIndex = snapshot.size + 1;
+          // Buscar el número más alto existente para este rol/prefijo
+          let maxNum = 0;
+          snapshot.forEach(doc => {
+             const parts = doc.id.split('-');
+             if (parts.length === 3) {
+                 const num = parseInt(parts[2]);
+                 if (!isNaN(num) && num > maxNum) maxNum = num;
+             }
+          });
           
-          // 3. Formateamos el ID según el rol
+          const nextIndex = maxNum + 1;
           const prefix = userRole === 'admin' ? 'Adm' : 'Usr';
-          const sequence = String(nextIndex).padStart(6, '0'); // 000001
+          const sequence = String(nextIndex).padStart(6, '0');
           currentId = `COT-${prefix}-${sequence}`;
 
           // Actualizamos el estado para reflejar el nuevo ID inmediatamente
@@ -846,17 +920,17 @@ const App = () => {
       url.searchParams.set("id", currentId);
       window.history.pushState({}, "", url);
 
-      alert(`☁️ Cotización guardada con éxito!\nID Asignado: ${currentId}`);
+      showNotification(`☁️ Cotización guardada: ${currentId}`, "success");
     } catch (e) {
       console.error(e);
-      alert("Error de conexión al guardar.");
+      showNotification("Error de conexión al guardar.", "error");
     }
   };
 
   const handleShareLink = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
-    alert("🔗 Link copiado!");
+    showNotification("🔗 Link copiado!", "success");
   };
 
   const handleExportData = () => {
@@ -933,9 +1007,6 @@ const App = () => {
           break;
       }
 
-      if (user && globalDb) {
-        // saveMasterTablesToCloud(importTarget, newData); // Implementar si es necesario
-      }
       setImportMessage({
         text: `Updated ${importTarget} (${newData.length} rows).`,
         type: "success",
@@ -956,12 +1027,7 @@ const App = () => {
     return c ? c.Currency : "USD";
   };
   const displayCurrency = getDisplayCurrency();
-  const handleClearAll = () => {
-    if (window.confirm("¿Borrar todo el contenido actual?")) {
-      setServices([]);
-      setManagements([]);
-    }
-  };
+
   const filteredSLCs = useMemo(
     () =>
       globalConfig.country === "Brazil"
@@ -1186,6 +1252,40 @@ const App = () => {
   return (
     <div className="min-h-screen pb-32 relative bg-slate-50 p-4">
       
+      {/* --- NOTIFICATION TOAST --- */}
+      {notification.show && (
+          <div className={`fixed top-4 right-4 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce-in
+              ${notification.type === 'error' ? 'bg-red-600 text-white' : 
+                notification.type === 'warning' ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'}`}>
+              <Info size={20} />
+              <span className="font-bold">{notification.message}</span>
+          </div>
+      )}
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmModal.show && (
+          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border-2 border-indigo-100 transform scale-100 transition-all">
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Confirm Action</h3>
+                <p className="text-slate-600 mb-6">{confirmModal.message}</p>
+                <div className="flex gap-3 justify-end">
+                    <button 
+                        onClick={() => setConfirmModal({ ...confirmModal, show: false })}
+                        className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={confirmModal.action}
+                        className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition"
+                    >
+                        Confirm
+                    </button>
+                </div>
+            </div>
+          </div>
+      )}
+      
       {/* --- SEARCH MODAL --- */}
       {isSearchModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-8 backdrop-blur-sm">
@@ -1346,9 +1446,9 @@ const App = () => {
                 readOnly
               />
               
-              {/* --- ⚡ BOTÓN NUEVO --- */}
+              {/* --- ⚡ BOTÓN NUEVO (CON TRIGGER MODAL) --- */}
               <button
-                onClick={handleNewQuote}
+                onClick={triggerNewQuote}
                 className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1 hover:bg-emerald-700 transition shadow-sm"
                 title="Create New Quote"
               >
@@ -1413,10 +1513,10 @@ const App = () => {
             )}
 
             <button
-              onClick={handleClearAll}
+              onClick={triggerClearAll}
               className="flex gap-2 px-4 py-2 text-red-600 border border-red-100 bg-red-50 rounded-lg hover:bg-red-100 text-sm font-bold"
             >
-              <RefreshCcw size={16} /> Clear
+              <RefreshCcw size={16} /> Reset
             </button>
 
             {/* --- LOGOUT BUTTON --- */}
@@ -1893,7 +1993,7 @@ const App = () => {
 
               <div className="grid grid-cols-5 gap-2">
                 <button
-                    onClick={handleNewQuote}
+                    onClick={triggerNewQuote}
                     className="col-span-1 bg-white border border-indigo-200 text-indigo-600 rounded-xl font-bold flex items-center justify-center hover:bg-indigo-50 transition"
                     title="Nueva Cotización"
                 >
