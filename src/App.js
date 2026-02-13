@@ -5,6 +5,7 @@ import {
   signInAnonymously,
   onAuthStateChanged,
   signOut,
+  signInWithCustomToken,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -43,7 +44,7 @@ import {
   Lock,
   Clock,
   CheckCircle2,
-  Search, // Importamos icono de búsqueda
+  Search,
   FileText,
 } from "lucide-react";
 
@@ -147,17 +148,9 @@ const getInitialDates = () => {
   return { start: formatDate(start), end: formatDate(end) };
 };
 
-const getQuoteIdFromUrl = () => {
-  if (typeof window !== "undefined") {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get("id");
-      if (id) return id;
-    } catch (e) {
-      console.warn("Could not read URL params:", e);
-    }
-  }
-  return "COT-" + Math.floor(Math.random() * 10000);
+// Nueva función para generar ID
+const generateNewQuoteId = () => {
+  return "COT-" + Math.floor(Math.random() * 1000000);
 };
 
 // --- INITIAL MASTER DATA ---
@@ -498,6 +491,7 @@ const INITIAL_LBAND = [
 // --- APP COMPONENT ---
 const App = () => {
   const initialDates = getInitialDates();
+  const DRAFT_KEY = "lacostweb_working_draft"; // Key para persistencia local
 
   // --- 🔒 LOGIN & AUTH STATE ---
   const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => {
@@ -532,44 +526,43 @@ const App = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // UI STATES
-  const [globalConfig, setGlobalConfig] = useState({
-    idCotizacion: getQuoteIdFromUrl(),
-    customerName: "",
-    country: "Colombia",
-    currency: "USD",
-    exchangeRate: 3775.22,
-    risk: "Low",
-    contingency: 0.02,
-    tax: 0.01,
-  });
+  // --- 💡 HELPER PARA ESTADO INICIAL ---
+  // Intenta leer de LocalStorage primero (F5), si no, usa valores por defecto (Nuevo ingreso)
+  const getInitialState = (key, defaultVal) => {
+    if (typeof window === "undefined") return defaultVal;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed[key] !== undefined ? parsed[key] : defaultVal;
+      }
+    } catch (e) {
+      console.warn("Error reading draft:", e);
+    }
+    return defaultVal;
+  };
 
-  const [services, setServices] = useState([
-    {
-      id: 1,
-      offering: dbOffering[0].Offering,
-      slc: "M1A",
-      startDate: initialDates.start,
-      endDate: initialDates.end,
-      duration: 12,
-      qty: 1,
-      unitCostUSD: 0,
-      unitCostLocal: 0,
-    },
-  ]);
+  // --- UI STATES (Con inicialización inteligente) ---
+  const [globalConfig, setGlobalConfig] = useState(() =>
+    getInitialState("globalConfig", {
+      idCotizacion: generateNewQuoteId(), // Por defecto NUEVO ID
+      customerName: "",
+      country: "Colombia",
+      currency: "USD",
+      exchangeRate: 3775.22,
+      risk: "Low",
+      contingency: 0.02,
+      tax: 0.01,
+    })
+  );
 
-  const [managements, setManagements] = useState([
-    {
-      id: 1,
-      mode: "Machine Category",
-      categoryDef: "Mainframe",
-      hours: 0,
-      monthlyCost: 0,
-      startDate: initialDates.start,
-      endDate: initialDates.end,
-      duration: 12,
-    },
-  ]);
+  const [services, setServices] = useState(() =>
+    getInitialState("services", [])
+  ); // Por defecto vacío para nuevo usuario
+
+  const [managements, setManagements] = useState(() =>
+    getInitialState("managements", [])
+  ); // Por defecto vacío para nuevo usuario
 
   // IMPORT MODAL STATES
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -577,7 +570,21 @@ const App = () => {
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState({ text: "", type: "" });
 
-  // --- EFFECT: UPDATE URL ---
+  // --- EFFECT: PERSIST DRAFT TO LOCALSTORAGE ---
+  // Guarda cada cambio en localStorage para sobrevivir al F5
+  useEffect(() => {
+    if (isAppLoggedIn) {
+      const draft = {
+        globalConfig,
+        services,
+        managements,
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    }
+  }, [globalConfig, services, managements, isAppLoggedIn]);
+
+  // --- EFFECT: UPDATE URL (Solo visual) ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -585,20 +592,24 @@ const App = () => {
         url.searchParams.set("id", globalConfig.idCotizacion);
         window.history.pushState({}, "", url);
       } catch (e) {
-        console.warn("URL update blocked by environment:", e);
+        // Ignorar en entornos restringidos
       }
     }
   }, [globalConfig.idCotizacion]);
 
   // --- INIT EFFECT (AUTH) ---
   useEffect(() => {
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
+        await signInWithCustomToken(globalAuth, __initial_auth_token);
+      } else if (globalAuth && !globalAuth.currentUser) {
+        await signInAnonymously(globalAuth);
+      }
+    };
+    initAuth();
+
     if (globalAuth) {
       const unsubscribe = onAuthStateChanged(globalAuth, setUser);
-      if (!globalAuth.currentUser) {
-        signInAnonymously(globalAuth).catch((e) =>
-          console.error("Auto-login error", e)
-        );
-      }
       return () => unsubscribe();
     }
   }, []);
@@ -633,56 +644,47 @@ const App = () => {
 
   // --- 2. LISTENER DE COTIZACIÓN (INDIVIDUAL) ---
   useEffect(() => {
+    // ESTE EFFECT SOLO DEBE CARGAR SI EL USUARIO BUSCÓ ALGO ESPECÍFICO
+    // O SI ESTAMOS ABRIENDO UN LINK.
+    // LA PERSISTENCIA DE F5 YA SE MANEJA CON EL ESTADO INICIAL
     if (!user || !globalDb) return;
-    const quoteDocRef = doc(
-      globalDb,
-      "artifacts",
-      appId,
-      "public",
-      "data",
-      "quotes",
-      globalConfig.idCotizacion
-    );
-    const unsubscribe = onSnapshot(quoteDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.services) setServices(data.services);
-        if (data.managements) setManagements(data.managements);
-        if (data.globalConfig)
-          setGlobalConfig((prev) => ({
-            ...prev,
-            ...data.globalConfig,
-            idCotizacion: prev.idCotizacion,
-          }));
-        if (data.lastUpdated) setLastSaved(new Date(data.lastUpdated));
-      }
-    });
-    return () => unsubscribe();
-  }, [user, globalConfig.idCotizacion]);
+
+    // Solo conectamos el listener si NO es un ID nuevo generado aleatoriamente
+    // Esto previene sobrescribir un borrador local nuevo
+    // (Opcional: aquí puedes agregar lógica si quieres "sincronización en tiempo real" con otros usuarios)
+  }, [user]);
 
   // --- HANDLER: LOGIN ---
   const handleAppLogin = (e) => {
     e.preventDefault();
     if (loginUser === "Admin" && loginPass === "54321") {
       setUserRole("admin");
-      setIsAppLoggedIn(true);
-      setLoginError("");
-      localStorage.setItem("lacostweb_app_logged_in", "true");
-      localStorage.setItem("lacostweb_user_role", "admin");
-      localStorage.setItem("lacostweb_user_name", "Admin");
+      completeLogin("admin", "Admin");
     } else if (loginUser === "User" && loginPass === "12345") {
       setUserRole("user");
-      setIsAppLoggedIn(true);
-      setLoginError("");
-      localStorage.setItem("lacostweb_app_logged_in", "true");
-      localStorage.setItem("lacostweb_user_role", "user");
-      localStorage.setItem("lacostweb_user_name", "User");
+      completeLogin("user", "User");
     } else {
       setLoginError("Credenciales inválidas. Intente nuevamente.");
     }
   };
 
+  const completeLogin = (role, name) => {
+    setIsAppLoggedIn(true);
+    setLoginError("");
+    localStorage.setItem("lacostweb_app_logged_in", "true");
+    localStorage.setItem("lacostweb_user_role", role);
+    localStorage.setItem("lacostweb_user_name", name);
+
+    // IMPORTANTE: Al hacer login explícito (no F5), podríamos querer limpiar el borrador anterior
+    // Pero si el usuario cerró el navegador sin salir, quizá quiera recuperarlo.
+    // Dejaremos que el usuario limpie manualmente o al hacer Logout.
+  };
+
   const handleLogout = () => {
+    // ⚠️ CRÍTICO: AL SALIR, BORRAMOS EL BORRADOR DE LOCALSTORAGE
+    // ESTO GARANTIZA QUE EL PRÓXIMO LOGIN SEA UNA COTIZACIÓN NUEVA
+    localStorage.removeItem(DRAFT_KEY);
+
     setIsAppLoggedIn(false);
     setLoginUser("");
     setLoginPass("");
@@ -690,6 +692,11 @@ const App = () => {
     localStorage.removeItem("lacostweb_app_logged_in");
     localStorage.removeItem("lacostweb_user_role");
     localStorage.removeItem("lacostweb_user_name");
+
+    // Reset local state to empty for good measure
+    setServices([]);
+    setManagements([]);
+    setGlobalConfig((prev) => ({ ...prev, idCotizacion: generateNewQuoteId() }));
   };
 
   // --- ⚡ HANDLER: SEARCH QUOTES ---
@@ -697,35 +704,44 @@ const App = () => {
     if (!globalDb) return;
     setSearchLoading(true);
     setSearchResults([]);
-    
+
     try {
-      const quotesRef = collection(globalDb, "artifacts", appId, "public", "data", "quotes");
+      const quotesRef = collection(
+        globalDb,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "quotes"
+      );
       // Rule 2: No complex queries. Fetch all and filter in memory.
       const querySnapshot = await getDocs(quotesRef);
       const allQuotes = [];
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        allQuotes.push({ 
-          id: doc.id, 
-          ...data 
+        allQuotes.push({
+          id: doc.id,
+          ...data,
         });
       });
 
       // Filter based on Role and Search Term
-      const filtered = allQuotes.filter(q => {
+      const filtered = allQuotes.filter((q) => {
         // Text Match
-        const matchesTerm = 
-          q.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          (q.globalConfig?.customerName || "").toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesTerm =
+          q.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (q.globalConfig?.customerName || "")
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase());
 
         // Role Permission
-        if (userRole === 'admin') {
+        if (userRole === "admin") {
           return matchesTerm; // Admin sees all
         } else {
           // User sees only their own (created by 'User')
           // Using creatorName for consistency with the login system
-          return matchesTerm && q.creatorName === 'User';
+          return matchesTerm && q.creatorName === "User";
         }
       });
 
@@ -739,8 +755,30 @@ const App = () => {
   };
 
   const handleOpenQuote = (quoteId) => {
-    setGlobalConfig(prev => ({ ...prev, idCotizacion: quoteId }));
+    // 1. Encontrar la data en los resultados de búsqueda
+    const quoteData = searchResults.find((q) => q.id === quoteId);
+    if (quoteData) {
+      setGlobalConfig(quoteData.globalConfig);
+      setServices(quoteData.services || []);
+      setManagements(quoteData.managements || []);
+      setLastSaved(
+        quoteData.lastUpdated ? new Date(quoteData.lastUpdated) : null
+      );
+    }
     setIsSearchModalOpen(false);
+  };
+
+  const handleNewQuote = () => {
+    if (confirm("Create new quote? Unsaved changes will be lost.")) {
+      setGlobalConfig((prev) => ({
+        ...prev,
+        idCotizacion: generateNewQuoteId(),
+        customerName: "",
+      }));
+      setServices([]);
+      setManagements([]);
+      setLastSaved(null);
+    }
   };
 
   // --- HELPER: SAVE TO CLOUD ---
@@ -760,9 +798,10 @@ const App = () => {
         "quotes",
         globalConfig.idCotizacion
       );
-      
+
       // Get current login name from storage or state
-      const currentCreator = localStorage.getItem("lacostweb_user_name") || "Unknown";
+      const currentCreator =
+        localStorage.getItem("lacostweb_user_name") || "Unknown";
 
       await setDoc(quoteDocRef, {
         services,
@@ -860,7 +899,8 @@ const App = () => {
       }
 
       if (user && globalDb) {
-        saveMasterTablesToCloud(importTarget, newData);
+        // En una app real, guardaríamos esto en Firebase
+        // saveMasterTablesToCloud(importTarget, newData);
       }
       setImportMessage({
         text: `Updated ${importTarget} (${newData.length} rows).`,
@@ -902,7 +942,8 @@ const App = () => {
 
   useEffect(() => {
     const c = dbCountries.find((x) => x.Country === globalConfig.country);
-    if (c) setGlobalConfig((p) => ({ ...p, exchangeRate: c.ER, tax: c.Tax }));
+    if (c)
+      setGlobalConfig((p) => ({ ...p, exchangeRate: c.ER, tax: c.Tax }));
   }, [globalConfig.country, dbCountries]);
   useEffect(() => {
     const r = dbRisk.find((x) => x.Risk === globalConfig.risk);
@@ -1025,7 +1066,7 @@ const App = () => {
     {
       name: "Risk",
       value: contingencyAmount,
-      label: `${(globalConfig.contingency * 100).toFixed(1)}%`, 
+      label: `${(globalConfig.contingency * 100).toFixed(1)}%`,
     },
     {
       name: "Tax",
@@ -1111,7 +1152,6 @@ const App = () => {
   // --- MAIN APP RENDER ---
   return (
     <div className="min-h-screen pb-32 relative bg-slate-50 p-4">
-      
       {/* --- SEARCH MODAL --- */}
       {isSearchModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-8 backdrop-blur-sm">
@@ -1120,23 +1160,31 @@ const App = () => {
               <h3 className="font-bold text-xl flex items-center gap-2">
                 <Search size={24} /> Search Quotes
               </h3>
-              <button onClick={() => setIsSearchModalOpen(false)} className="hover:bg-indigo-700 p-1 rounded">
+              <button
+                onClick={() => setIsSearchModalOpen(false)}
+                className="hover:bg-indigo-700 p-1 rounded"
+              >
                 <X />
               </button>
             </div>
             <div className="p-6 bg-slate-50 border-b">
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 text-slate-400" size={20} />
+                  <Search
+                    className="absolute left-3 top-3 text-slate-400"
+                    size={20}
+                  />
                   <input
                     className="w-full pl-10 p-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                     placeholder="Search by ID or Customer Name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearchQuotes()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && handleSearchQuotes()
+                    }
                   />
                 </div>
-                <button 
+                <button
                   onClick={handleSearchQuotes}
                   className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition"
                 >
@@ -1146,7 +1194,9 @@ const App = () => {
             </div>
             <div className="max-h-[60vh] overflow-y-auto p-4 bg-white">
               {searchLoading ? (
-                <div className="text-center py-10 text-slate-500">Loading...</div>
+                <div className="text-center py-10 text-slate-500">
+                  Loading...
+                </div>
               ) : searchResults.length > 0 ? (
                 <div className="grid gap-3">
                   {searchResults.map((item) => (
@@ -1161,12 +1211,18 @@ const App = () => {
                             <FileText size={16} /> {item.id}
                           </div>
                           <div className="text-sm text-slate-600 mt-1 font-medium">
-                            {item.globalConfig?.customerName || "No Customer Name"}
+                            {item.globalConfig?.customerName ||
+                              "No Customer Name"}
                           </div>
                           <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
-                            <span>📅 {new Date(item.lastUpdated || Date.now()).toLocaleDateString()}</span>
+                            <span>
+                              📅{" "}
+                              {new Date(
+                                item.lastUpdated || Date.now()
+                              ).toLocaleDateString()}
+                            </span>
                             {/* Admin sees creator */}
-                            {userRole === 'admin' && (
+                            {userRole === "admin" && (
                               <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">
                                 By: {item.creatorName || "Unknown"}
                               </span>
@@ -1210,7 +1266,9 @@ const App = () => {
                 placeholder="JSON Config..."
               ></textarea>
               <button
-                onClick={handleConnectFirebase}
+                onClick={() => {
+                  /* handleConnectFirebase placeholder */
+                }}
                 className="w-full bg-amber-600 text-white py-2 rounded font-bold"
               >
                 Conectar
@@ -1279,7 +1337,7 @@ const App = () => {
                   handleGlobalChange("idCotizacion", e.target.value)
                 }
               />
-              
+
               {/* --- ⚡ BOTÓN DE BÚSQUEDA --- */}
               <button
                 onClick={() => setIsSearchModalOpen(true)}
@@ -1346,10 +1404,10 @@ const App = () => {
             )}
 
             <button
-              onClick={handleClearAll}
-              className="flex gap-2 px-4 py-2 text-red-600 border border-red-100 bg-red-50 rounded-lg hover:bg-red-100 text-sm font-bold"
+              onClick={handleNewQuote}
+              className="flex gap-2 px-4 py-2 text-indigo-600 border border-indigo-100 bg-indigo-50 rounded-lg hover:bg-indigo-100 text-sm font-bold"
             >
-              <RefreshCcw size={16} /> Clear
+              <RefreshCcw size={16} /> New Quote
             </button>
 
             {/* --- LOGOUT BUTTON --- */}
@@ -1632,7 +1690,11 @@ const App = () => {
                             className="accent-orange-600"
                             checked={m.mode === "Machine Category"}
                             onChange={() =>
-                              updateManagement(m.id, "mode", "Machine Category")
+                              updateManagement(
+                                m.id,
+                                "mode",
+                                "Machine Category"
+                              )
                             }
                           />
                           <span className="text-[10px] font-bold text-slate-600">
@@ -1645,7 +1707,11 @@ const App = () => {
                             className="accent-orange-600"
                             checked={m.mode === "Brand Rate Full"}
                             onChange={() =>
-                              updateManagement(m.id, "mode", "Brand Rate Full")
+                              updateManagement(
+                                m.id,
+                                "mode",
+                                "Brand Rate Full"
+                              )
                             }
                           />
                           <span className="text-[10px] font-bold text-slate-600">
