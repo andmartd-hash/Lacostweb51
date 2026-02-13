@@ -721,6 +721,9 @@ const App = () => {
     setSearchLoading(true);
     setSearchResults([]);
     
+    // Obtener usuario actual para filtrar correctamente
+    const currentUserName = sessionStorage.getItem("lacostweb_user_name") || "User";
+
     try {
       const quotesRef = collection(globalDb, "artifacts", appId, "public", "data", "quotes");
       // Rule 2: No complex queries. Fetch all and filter in memory.
@@ -746,8 +749,8 @@ const App = () => {
         if (userRole === 'admin') {
           return matchesTerm; // Admin sees all
         } else {
-          // User sees only their own (created by 'User')
-          return matchesTerm && q.creatorName === 'User';
+          // User sees only their own (creadas por él mismo)
+          return matchesTerm && q.creatorName === currentUserName;
         }
       });
 
@@ -945,7 +948,8 @@ const App = () => {
         currentId
       );
       
-      const currentCreator = localStorage.getItem("lacostweb_user_name") || "Unknown";
+      // FIX: Leer el usuario de sessionStorage para que coincida con el Login
+      const currentCreator = sessionStorage.getItem("lacostweb_user_name") || "Unknown";
 
       await setDoc(quoteDocRef, {
         services,
@@ -1527,7 +1531,7 @@ const App = () => {
                 onClick={() => setIsSearchModalOpen(true)}
                 className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1 border border-indigo-200 hover:bg-indigo-200 transition"
               >
-                <Search size={14} /> Find
+                <Search size={14} /> Buscar Quote
               </button>
 
               <button
