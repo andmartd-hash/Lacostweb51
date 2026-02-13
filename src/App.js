@@ -10,6 +10,7 @@ import {
   getFirestore,
   doc,
   setDoc,
+  deleteDoc, // Importamos deleteDoc
   onSnapshot,
   collection,
   getDocs,
@@ -865,6 +866,39 @@ const App = () => {
       showNotification("🧹 Formulario reiniciado", "success");
   };
 
+  // --- ⚡ HANDLER: DELETE QUOTE (ADMIN ONLY) ---
+  const triggerDeleteQuote = (quoteId, e) => {
+    e.stopPropagation();
+    setConfirmModal({
+      show: true,
+      message: `¿Estás seguro de eliminar la cotización ${quoteId}? Esta acción no se puede deshacer.`,
+      action: () => performDeleteQuote(quoteId)
+    });
+  };
+
+  const performDeleteQuote = async (quoteId) => {
+    if (!globalDb) return;
+    
+    try {
+      await deleteDoc(doc(globalDb, "artifacts", appId, "public", "data", "quotes", quoteId));
+      
+      // Update local list
+      setSearchResults(prev => prev.filter(q => q.id !== quoteId));
+      
+      // If deleted quote is current quote, reset to new
+      if (globalConfig.idCotizacion === quoteId) {
+        performNewQuote();
+      }
+      
+      showNotification(`🗑️ Cotización ${quoteId} eliminada`, "success");
+    } catch (error) {
+      console.error("Error deleting quote:", error);
+      showNotification("Error al eliminar la cotización", "error");
+    } finally {
+      setConfirmModal({ show: false, message: "", action: null });
+    }
+  };
+
   // --- HELPER: SAVE TO CLOUD (WITH AUTO-NUMBERING) ---
   const handleSaveToCloud = async () => {
     if (!user || !globalDb) {
@@ -1363,7 +1397,7 @@ const App = () => {
                             </span>
                           </td>
                         )}
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right flex justify-end gap-2">
                           <button 
                             className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 font-bold text-xs"
                             onClick={(e) => {
@@ -1373,6 +1407,17 @@ const App = () => {
                           >
                             Open
                           </button>
+                          
+                          {/* --- BOTÓN DE ELIMINAR (SOLO ADMIN) --- */}
+                          {userRole === 'admin' && (
+                            <button 
+                              className="bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-200"
+                              onClick={(e) => triggerDeleteQuote(item.id, e)}
+                              title="Delete Quote"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
