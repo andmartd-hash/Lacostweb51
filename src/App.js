@@ -558,6 +558,7 @@ const App = () => {
     {
       id: 1,
       offering: dbOffering[0].Offering,
+      description: "", // NEW FIELD
       slc: "M1A",
       startDate: initialDates.start,
       endDate: initialDates.end,
@@ -573,6 +574,7 @@ const App = () => {
       id: 1,
       mode: "Machine Category",
       categoryDef: "Mainframe",
+      description: "", // NEW FIELD
       hours: 0,
       monthlyCost: 0,
       startDate: initialDates.start,
@@ -814,6 +816,7 @@ const App = () => {
                 {
                   id: Date.now(),
                   offering: dbOffering[0]?.Offering || "Service",
+                  description: "",
                   slc: "M1A",
                   startDate: dates.start,
                   endDate: dates.end,
@@ -828,6 +831,7 @@ const App = () => {
                   id: Date.now() + 1,
                   mode: "Machine Category",
                   categoryDef: "Mainframe",
+                  description: "",
                   hours: 0,
                   monthlyCost: 0,
                   startDate: dates.start,
@@ -875,6 +879,7 @@ const App = () => {
         {
           id: Date.now(),
           offering: dbOffering[0]?.Offering || "Service",
+          description: "",
           slc: "M1A",
           startDate: dates.start,
           endDate: dates.end,
@@ -889,6 +894,7 @@ const App = () => {
           id: Date.now() + 1,
           mode: "Machine Category",
           categoryDef: "Mainframe",
+          description: "",
           hours: 0,
           monthlyCost: 0,
           startDate: dates.start,
@@ -1329,7 +1335,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V52.0
+            LACOSTWEB V52.1
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1608,7 +1614,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V52.0
+              <IbmLogo /> IBM Costing V52.1
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1794,6 +1800,7 @@ const App = () => {
                   {
                     id: Date.now(),
                     offering: dbOffering[0].Offering,
+                    description: "",
                     slc: "M1A",
                     startDate: initialDates.start,
                     endDate: initialDates.end,
@@ -1813,17 +1820,18 @@ const App = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-xs uppercase">
                 <tr>
-                  <th className="px-4 py-3 w-[20%]">Offering</th>
-                  <th className="px-4 py-3 w-[10%]">SLC</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Start</th>
-                  <th className="px-4 py-3 text-right w-[10%]">End</th>
-                  <th className="px-4 py-3 text-right w-[5%]">Dur</th>
-                  <th className="px-4 py-3 text-right w-[8%]">Qty</th>
+                  <th className="px-4 py-3 w-[18%]">Offering</th>
+                  <th className="px-4 py-3 w-[15%]">Description</th>
+                  <th className="px-4 py-3 w-[8%]">SLC</th>
+                  <th className="px-4 py-3 text-right w-[9%]">Start</th>
+                  <th className="px-4 py-3 text-right w-[9%]">End</th>
+                  <th className="px-4 py-3 text-right w-[4%]">Dur</th>
+                  <th className="px-4 py-3 text-right w-[6%]">Qty</th>
                   {/* --- NUEVAS COLUMNAS DE COSTOS --- */}
-                  <th className="px-4 py-3 text-right w-[10%]">USD Unit Cost</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Local Unit Cost</th>
-                  <th className="px-4 py-3 text-right w-[12%]">Total</th>
-                  <th className="px-4 py-3 w-[5%]"></th>
+                  <th className="px-4 py-3 text-right w-[9%]">USD Cost</th>
+                  <th className="px-4 py-3 text-right w-[9%]">Local Cost</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                  <th className="px-4 py-3 w-[3%]"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1843,6 +1851,15 @@ const App = () => {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="px-4 py-3">
+                        <input
+                            type="text"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                            placeholder="Description..."
+                            value={s.description}
+                            onChange={(e) => updateService(s.id, "description", e.target.value)}
+                        />
                     </td>
                     <td className="px-4 py-3">
                       <select
@@ -1957,6 +1974,7 @@ const App = () => {
                     id: Date.now(),
                     mode: "Machine Category",
                     categoryDef: activeLPLAT[0].Def,
+                    description: "",
                     hours: 0,
                     startDate: initialDates.start,
                     endDate: initialDates.end,
@@ -1973,13 +1991,14 @@ const App = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-xs uppercase">
                 <tr>
-                  <th className="px-4 py-3 w-[15%]">Mode</th>
-                  <th className="px-4 py-3 w-[20%]">Selection</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Start</th>
-                  <th className="px-4 py-3 text-right w-[10%]">End</th>
-                  <th className="px-4 py-3 text-right w-[5%]">Dur</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Rate</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Hours</th>
+                  <th className="px-4 py-3 w-[12%]">Mode</th>
+                  <th className="px-4 py-3 w-[15%]">Selection</th>
+                  <th className="px-4 py-3 w-[15%]">Description</th>
+                  <th className="px-4 py-3 text-right w-[9%]">Start</th>
+                  <th className="px-4 py-3 text-right w-[9%]">End</th>
+                  <th className="px-4 py-3 text-right w-[4%]">Dur</th>
+                  <th className="px-4 py-3 text-right w-[8%]">Rate</th>
+                  <th className="px-4 py-3 text-right w-[8%]">Hours</th>
                   <th className="px-4 py-3 text-right w-[15%]">Total</th>
                   <th className="px-4 py-3 w-[5%]"></th>
                 </tr>
@@ -2034,6 +2053,15 @@ const App = () => {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="px-4 py-3">
+                        <input
+                            type="text"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                            placeholder="Description..."
+                            value={m.description}
+                            onChange={(e) => updateManagement(m.id, "description", e.target.value)}
+                        />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <input
@@ -2134,13 +2162,13 @@ const App = () => {
                 <tr>
                   <th className="px-4 py-3 w-[20%]">Vendor Name</th>
                   <th className="px-4 py-3 w-[15%]">Frequency</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Start</th>
-                  <th className="px-4 py-3 text-right w-[10%]">End</th>
-                  <th className="px-4 py-3 text-right w-[5%]">Dur</th>
-                  <th className="px-4 py-3 text-right w-[5%]">Qty</th>
-                  <th className="px-4 py-3 text-right w-[10%]">USD Unit</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Local Unit</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                  <th className="px-4 py-3 text-right w-[9%]">Start</th>
+                  <th className="px-4 py-3 text-right w-[9%]">End</th>
+                  <th className="px-4 py-3 text-right w-[4%]">Dur</th>
+                  <th className="px-4 py-3 text-right w-[6%]">Qty</th>
+                  <th className="px-4 py-3 text-right w-[9%]">USD Unit</th>
+                  <th className="px-4 py-3 text-right w-[9%]">Local Unit</th>
+                  <th className="px-4 py-3 text-right w-[12%]">Total</th>
                   <th className="px-4 py-3 w-[5%]"></th>
                 </tr>
               </thead>
