@@ -1228,7 +1228,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51.8
+            LACOSTWEB V51.9
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1507,7 +1507,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51.8
+              <IbmLogo /> IBM Costing V51.9
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1712,14 +1712,16 @@ const App = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-xs uppercase">
                 <tr>
-                  <th className="px-4 py-3 w-[25%]">Offering</th>
+                  <th className="px-4 py-3 w-[20%]">Offering</th>
                   <th className="px-4 py-3 w-[10%]">SLC</th>
                   <th className="px-4 py-3 text-right w-[10%]">Start</th>
                   <th className="px-4 py-3 text-right w-[10%]">End</th>
                   <th className="px-4 py-3 text-right w-[5%]">Dur</th>
                   <th className="px-4 py-3 text-right w-[8%]">Qty</th>
-                  <th className="px-4 py-3 text-right w-[12%]">Unit Cost</th>
-                  <th className="px-4 py-3 text-right w-[15%]">Total</th>
+                  {/* --- NUEVAS COLUMNAS DE COSTOS --- */}
+                  <th className="px-4 py-3 text-right w-[10%]">USD Unit Cost</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Local Unit Cost</th>
+                  <th className="px-4 py-3 text-right w-[12%]">Total</th>
                   <th className="px-4 py-3 w-[5%]"></th>
                 </tr>
               </thead>
@@ -1789,15 +1791,33 @@ const App = () => {
                         }
                       />
                     </td>
+                    {/* --- INPUT COSTO USD --- */}
                     <td className="px-4 py-3 text-right">
                       <input
                         type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1 border border-slate-200"
+                        placeholder="USD"
                         value={s.unitCostUSD}
                         onChange={(e) =>
                           updateService(
                             s.id,
                             "unitCostUSD",
+                            Number(e.target.value)
+                          )
+                        }
+                      />
+                    </td>
+                    {/* --- INPUT COSTO LOCAL (NUEVO) --- */}
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="number"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1 border border-slate-200"
+                        placeholder="Local"
+                        value={s.unitCostLocal}
+                        onChange={(e) =>
+                          updateService(
+                            s.id,
+                            "unitCostLocal",
                             Number(e.target.value)
                           )
                         }
