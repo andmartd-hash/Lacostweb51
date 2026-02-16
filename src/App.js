@@ -49,7 +49,8 @@ import {
   Plus,
   Save,
   Info,
-  List, // Icono para lista
+  List, 
+  Truck, // Icono para Suppliers
 } from "lucide-react";
 
 // --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
@@ -505,7 +506,6 @@ const App = () => {
   const initialDates = getInitialDates();
 
   // --- 🔒 LOGIN & AUTH STATE ---
-  // MODIFICACIÓN 1: Uso de sessionStorage para "limpiar cookies" al cerrar navegador
   const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => {
     return sessionStorage.getItem("lacostweb_app_logged_in") === "true";
   });
@@ -579,6 +579,21 @@ const App = () => {
       endDate: initialDates.end,
       duration: 12,
     },
+  ]);
+
+  // --- NEW MODULE STATE: SUPPLIERS ---
+  const [suppliers, setSuppliers] = useState([
+    {
+        id: 1,
+        vendorName: "",
+        frequency: "Monthly", // OTC, Monthly, Annual
+        startDate: initialDates.start,
+        endDate: initialDates.end,
+        duration: 12,
+        qty: 1,
+        unitCostUSD: 0,
+        unitCostLocal: 0
+    }
   ]);
 
   // IMPORT MODAL STATES
@@ -668,6 +683,9 @@ const App = () => {
         const data = docSnap.data();
         if (data.services) setServices(data.services);
         if (data.managements) setManagements(data.managements);
+        // Cargar Suppliers si existen
+        if (data.suppliers) setSuppliers(data.suppliers);
+        
         if (data.globalConfig)
           setGlobalConfig((prev) => ({
             ...prev,
@@ -817,6 +835,19 @@ const App = () => {
                   duration: 12,
                 }
             ]);
+            setSuppliers([
+                {
+                    id: Date.now() + 2,
+                    vendorName: "",
+                    frequency: "Monthly",
+                    startDate: dates.start,
+                    endDate: dates.end,
+                    duration: 12,
+                    qty: 1,
+                    unitCostUSD: 0,
+                    unitCostLocal: 0
+                }
+            ]);
             setGlobalConfig(prev => ({
                 ...prev,
                 idCotizacion: "COT-NUEVA",
@@ -863,6 +894,19 @@ const App = () => {
           startDate: dates.start,
           endDate: dates.end,
           duration: 12,
+        }
+      ]);
+      setSuppliers([
+        {
+            id: Date.now() + 2,
+            vendorName: "",
+            frequency: "Monthly",
+            startDate: dates.start,
+            endDate: dates.end,
+            duration: 12,
+            qty: 1,
+            unitCostUSD: 0,
+            unitCostLocal: 0
         }
       ]);
       setConfirmModal({ show: false, message: "", action: null });
@@ -954,6 +998,7 @@ const App = () => {
       await setDoc(quoteDocRef, {
         services,
         managements,
+        suppliers, // Guardar suppliers
         globalConfig: { ...globalConfig, idCotizacion: currentId }, // Aseguramos que el ID coincida
         lastUpdated: new Date().toISOString(),
         savedBy: user.uid, // ID Técnico
@@ -1173,6 +1218,46 @@ const App = () => {
     return rateConverted * m.hours * m.duration;
   };
 
+  // --- LOGIC: UPDATE SUPPLIER ---
+  const updateSupplier = (id, f, v) => {
+      setSuppliers(suppliers.map(s => {
+          if (s.id !== id) return s;
+          const u = { ...s, [f]: v };
+          if (f === "startDate" || f === "endDate") {
+              u.duration = calculateDuration(
+                  f === "startDate" ? v : s.startDate,
+                  f === "endDate" ? v : s.endDate
+              );
+          }
+          return u;
+      }));
+  };
+
+  // --- LOGIC: CALCULATE SUPPLIER TOTAL ---
+  const calculateSupplierTotal = (s) => {
+      // 1. Convert Local Cost based on global currency setting
+      let baseUnitCost;
+      
+      if (globalConfig.currency === "USD") {
+          // If Global is USD: Local input is converted to USD
+          baseUnitCost = s.unitCostUSD + (s.unitCostLocal / globalConfig.exchangeRate);
+      } else {
+          // If Global is Local: USD input is converted to Local
+          baseUnitCost = (s.unitCostUSD * globalConfig.exchangeRate) + s.unitCostLocal;
+      }
+
+      // 2. Apply Formula based on Frequency
+      if (s.frequency === "OTC") {
+          return baseUnitCost * s.qty;
+      } else if (s.frequency === "Monthly") {
+          return baseUnitCost * s.qty * s.duration;
+      } else if (s.frequency === "Annual") {
+          return baseUnitCost * s.qty * (s.duration / 12);
+      }
+      return 0;
+  };
+
+
   const totalServices = services.reduce(
     (a, s) => a + calculateServiceTotal(s),
     0
@@ -1181,14 +1266,22 @@ const App = () => {
     (a, m) => a + calculateManagementTotal(m),
     0
   );
-  const subTotal = totalServices + totalManagement;
+  
+  // Nuevo total suppliers
+  const totalSuppliers = suppliers.reduce(
+    (a, s) => a + calculateSupplierTotal(s),
+    0
+  );
+
+  const subTotal = totalServices + totalManagement + totalSuppliers;
   const contingencyAmount = subTotal * globalConfig.contingency;
   const taxAmount = subTotal * globalConfig.tax;
   const grandTotal = subTotal + contingencyAmount + taxAmount;
 
   const totalContractDuration = Math.max(
     services.reduce((max, s) => Math.max(max, s.duration || 0), 0),
-    managements.reduce((max, m) => Math.max(max, m.duration || 0), 0)
+    managements.reduce((max, m) => Math.max(max, m.duration || 0), 0),
+    suppliers.reduce((max, s) => Math.max(max, s.duration || 0), 0)
   );
 
   const chartData = [
@@ -1206,6 +1299,14 @@ const App = () => {
       label:
         grandTotal > 0
           ? `${((totalManagement / grandTotal) * 100).toFixed(0)}%`
+          : "0%",
+    },
+    {
+      name: "Suppliers", // New Bar
+      value: totalSuppliers,
+      label:
+        grandTotal > 0
+          ? `${((totalSuppliers / grandTotal) * 100).toFixed(0)}%`
           : "0%",
     },
     {
@@ -1228,7 +1329,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51.9
+            LACOSTWEB V52.0
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1507,7 +1608,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51.9
+              <IbmLogo /> IBM Costing V52.0
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1999,6 +2100,156 @@ const App = () => {
           </div>
         </div>
 
+        {/* --- NEW MODULE: SUPPLIERS --- */}
+        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between">
+            <h3 className="font-bold text-lg flex gap-2">
+              <Truck className="text-teal-600" /> Suppliers
+            </h3>
+            <button
+              onClick={() =>
+                setSuppliers([
+                  ...suppliers,
+                  {
+                    id: Date.now(),
+                    vendorName: "",
+                    frequency: "Monthly",
+                    startDate: initialDates.start,
+                    endDate: initialDates.end,
+                    duration: 12,
+                    qty: 1,
+                    unitCostUSD: 0,
+                    unitCostLocal: 0
+                  },
+                ])
+              }
+              className="bg-teal-600 text-white px-3 py-1 rounded text-sm font-bold"
+            >
+              + Add
+            </button>
+          </div>
+          <div className="overflow-auto pb-4">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100 text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3 w-[20%]">Vendor Name</th>
+                  <th className="px-4 py-3 w-[15%]">Frequency</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Start</th>
+                  <th className="px-4 py-3 text-right w-[10%]">End</th>
+                  <th className="px-4 py-3 text-right w-[5%]">Dur</th>
+                  <th className="px-4 py-3 text-right w-[5%]">Qty</th>
+                  <th className="px-4 py-3 text-right w-[10%]">USD Unit</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Local Unit</th>
+                  <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                  <th className="px-4 py-3 w-[5%]"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {suppliers.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                        <input
+                            type="text"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                            placeholder="Vendor Name"
+                            value={s.vendorName}
+                            onChange={(e) => updateSupplier(s.id, "vendorName", e.target.value)}
+                        />
+                    </td>
+                    <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                            <label className="flex items-center gap-1 cursor-pointer text-xs">
+                                <input 
+                                    type="radio" 
+                                    name={`freq-${s.id}`}
+                                    checked={s.frequency === "OTC"}
+                                    onChange={() => updateSupplier(s.id, "frequency", "OTC")}
+                                    className="accent-teal-600"
+                                /> OTC
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer text-xs">
+                                <input 
+                                    type="radio" 
+                                    name={`freq-${s.id}`}
+                                    checked={s.frequency === "Monthly"}
+                                    onChange={() => updateSupplier(s.id, "frequency", "Monthly")}
+                                    className="accent-teal-600"
+                                /> Monthly
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer text-xs">
+                                <input 
+                                    type="radio" 
+                                    name={`freq-${s.id}`}
+                                    checked={s.frequency === "Annual"}
+                                    onChange={() => updateSupplier(s.id, "frequency", "Annual")}
+                                    className="accent-teal-600"
+                                /> Annual
+                            </label>
+                        </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="date"
+                        className="w-full bg-transparent text-right"
+                        value={s.startDate}
+                        onChange={(e) => updateSupplier(s.id, "startDate", e.target.value)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="date"
+                        className="w-full bg-transparent text-right"
+                        value={s.endDate}
+                        onChange={(e) => updateSupplier(s.id, "endDate", e.target.value)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {s.duration}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="number"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                        value={s.qty}
+                        onChange={(e) => updateSupplier(s.id, "qty", Number(e.target.value))}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="number"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                        placeholder="USD"
+                        value={s.unitCostUSD}
+                        onChange={(e) => updateSupplier(s.id, "unitCostUSD", Number(e.target.value))}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input
+                        type="number"
+                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                        placeholder="Local"
+                        value={s.unitCostLocal}
+                        onChange={(e) => updateSupplier(s.id, "unitCostLocal", Number(e.target.value))}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-teal-700">
+                      {formatCurrency(calculateSupplierTotal(s))}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => setSuppliers(suppliers.filter((x) => x.id !== s.id))}
+                        className="text-red-400 hover:text-red-600 transition"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <h3 className="font-bold mb-4 flex gap-2">
@@ -2014,8 +2265,8 @@ const App = () => {
                       <Cell
                         key={`cell-${index}`}
                         fill={
-                          ["#3b82f6", "#f97316", "#eab308", "#64748b"][
-                            index % 4
+                          ["#3b82f6", "#f97316", "#0d9488", "#eab308", "#64748b"][ // Added Teal for Suppliers
+                            index % 5
                           ]
                         }
                       />
@@ -2057,6 +2308,12 @@ const App = () => {
                 <span className="text-slate-600 text-sm">Management</span>
                 <span className="font-bold text-slate-800">
                   ${formatCurrency(totalManagement)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-600 text-sm">Suppliers</span>
+                <span className="font-bold text-slate-800">
+                  ${formatCurrency(totalSuppliers)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
