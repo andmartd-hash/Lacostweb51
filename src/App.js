@@ -47,10 +47,11 @@ import {
   Search,
   FileText,
   Plus,
+  Minus, // Importamos Minus para el colapso
   Save,
   Info,
   List, 
-  Truck, // Icono para Suppliers
+  Truck, 
 } from "lucide-react";
 
 // --- ⚠️ ZONA DE CONFIGURACIÓN COMPARTIDA ⚠️ ---
@@ -542,6 +543,17 @@ const App = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // --- UI STATE: COLLAPSIBLE SECTIONS ---
+  const [expandedSections, setExpandedSections] = useState({
+    services: true,
+    management: true,
+    suppliers: true,
+  });
+
+  const toggleSection = (section) => {
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
   // UI STATES
   const [globalConfig, setGlobalConfig] = useState({
     idCotizacion: getQuoteIdFromUrl(),
@@ -558,7 +570,7 @@ const App = () => {
     {
       id: 1,
       offering: dbOffering[0].Offering,
-      description: "", // NEW FIELD
+      description: "", 
       slc: "M1A",
       startDate: initialDates.start,
       endDate: initialDates.end,
@@ -574,7 +586,7 @@ const App = () => {
       id: 1,
       mode: "Machine Category",
       categoryDef: "Mainframe",
-      description: "", // NEW FIELD
+      description: "", 
       hours: 0,
       monthlyCost: 0,
       startDate: initialDates.start,
@@ -1335,7 +1347,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V52.1
+            LACOSTWEB V52.2
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1614,7 +1626,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V52.1
+              <IbmLogo /> IBM Costing V52.2
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1789,493 +1801,535 @@ const App = () => {
 
       <div className="space-y-8">
         <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between">
-            <h3 className="font-bold text-lg flex gap-2">
-              <Database className="text-indigo-600" /> Services
-            </h3>
-            <button
-              onClick={() =>
-                setServices([
-                  ...services,
-                  {
-                    id: Date.now(),
-                    offering: dbOffering[0].Offering,
-                    description: "",
-                    slc: "M1A",
-                    startDate: initialDates.start,
-                    endDate: initialDates.end,
-                    duration: 12,
-                    qty: 1,
-                    unitCostUSD: 0,
-                    unitCostLocal: 0,
-                  },
-                ])
-              }
-              className="bg-indigo-600 text-white px-3 py-1 rounded text-sm font-bold"
+          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
+            <div 
+                className="flex items-center gap-3 cursor-pointer group" 
+                onClick={() => toggleSection('services')}
             >
-              + Add
-            </button>
+                <div className="text-slate-400 group-hover:text-indigo-600 transition">
+                    {expandedSections.services ? <Minus size={20} /> : <Plus size={20} />}
+                </div>
+                <h3 className="font-bold text-lg flex gap-2 select-none text-slate-800 group-hover:text-indigo-700">
+                  <Database className="text-indigo-600" /> Services
+                </h3>
+            </div>
+            
+            {expandedSections.services && (
+                <button
+                  onClick={() =>
+                    setServices([
+                      ...services,
+                      {
+                        id: Date.now(),
+                        offering: dbOffering[0].Offering,
+                        description: "",
+                        slc: "M1A",
+                        startDate: initialDates.start,
+                        endDate: initialDates.end,
+                        duration: 12,
+                        qty: 1,
+                        unitCostUSD: 0,
+                        unitCostLocal: 0,
+                      },
+                    ])
+                  }
+                  className="bg-indigo-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm hover:bg-indigo-700 transition"
+                >
+                  + Add
+                </button>
+            )}
           </div>
-          <div className="overflow-auto pb-4">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-100 text-xs uppercase">
-                <tr>
-                  <th className="px-4 py-3 w-[18%]">Offering</th>
-                  <th className="px-4 py-3 w-[15%]">Description</th>
-                  <th className="px-4 py-3 w-[8%]">SLC</th>
-                  <th className="px-4 py-3 text-right w-[9%]">Start</th>
-                  <th className="px-4 py-3 text-right w-[9%]">End</th>
-                  <th className="px-4 py-3 text-right w-[4%]">Dur</th>
-                  <th className="px-4 py-3 text-right w-[6%]">Qty</th>
-                  {/* --- NUEVAS COLUMNAS DE COSTOS --- */}
-                  <th className="px-4 py-3 text-right w-[9%]">USD Cost</th>
-                  <th className="px-4 py-3 text-right w-[9%]">Local Cost</th>
-                  <th className="px-4 py-3 text-right w-[10%]">Total</th>
-                  <th className="px-4 py-3 w-[3%]"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {services.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <select
-                        className="w-full bg-transparent text-ellipsis overflow-hidden"
-                        value={s.offering}
-                        onChange={(e) =>
-                          updateService(s.id, "offering", e.target.value)
-                        }
-                      >
-                        {dbOffering.map((o, i) => (
-                          <option key={i} value={o.Offering}>
-                            {o.Offering}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                        <input
-                            type="text"
-                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
-                            placeholder="Description..."
-                            value={s.description}
-                            onChange={(e) => updateService(s.id, "description", e.target.value)}
-                        />
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        className="w-full bg-transparent"
-                        value={s.slc}
-                        onChange={(e) =>
-                          updateService(s.id, "slc", e.target.value)
-                        }
-                      >
-                        {filteredSLCs.map((l, i) => (
-                          <option key={i} value={l.SLC}>
-                            {l.SLC}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="date"
-                        className="w-full bg-transparent text-right"
-                        value={s.startDate}
-                        onChange={(e) =>
-                          updateService(s.id, "startDate", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="date"
-                        className="w-full bg-transparent text-right"
-                        value={s.endDate}
-                        onChange={(e) =>
-                          updateService(s.id, "endDate", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {s.duration}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
-                        value={s.qty}
-                        onChange={(e) =>
-                          updateService(s.id, "qty", Number(e.target.value))
-                        }
-                      />
-                    </td>
-                    {/* --- INPUT COSTO USD --- */}
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1 border border-slate-200"
-                        placeholder="USD"
-                        value={s.unitCostUSD}
-                        onChange={(e) =>
-                          updateService(
-                            s.id,
-                            "unitCostUSD",
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    </td>
-                    {/* --- INPUT COSTO LOCAL (NUEVO) --- */}
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1 border border-slate-200"
-                        placeholder="Local"
-                        value={s.unitCostLocal}
-                        onChange={(e) =>
-                          updateService(
-                            s.id,
-                            "unitCostLocal",
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-indigo-700">
-                      {formatCurrency(calculateServiceTotal(s))}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() =>
-                          setServices(services.filter((x) => x.id !== s.id))
-                        }
-                        className="text-red-400 hover:text-red-600 transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          
+          {expandedSections.services && (
+              <div className="overflow-auto pb-4 transition-all duration-300 ease-in-out">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-100 text-xs uppercase">
+                    <tr>
+                      <th className="px-4 py-3 w-[18%]">Offering</th>
+                      <th className="px-4 py-3 w-[15%]">Description</th>
+                      <th className="px-4 py-3 w-[8%]">SLC</th>
+                      <th className="px-4 py-3 text-right w-[9%]">Start</th>
+                      <th className="px-4 py-3 text-right w-[9%]">End</th>
+                      <th className="px-4 py-3 text-right w-[4%]">Dur</th>
+                      <th className="px-4 py-3 text-right w-[6%]">Qty</th>
+                      {/* --- NUEVAS COLUMNAS DE COSTOS --- */}
+                      <th className="px-4 py-3 text-right w-[9%]">USD Cost</th>
+                      <th className="px-4 py-3 text-right w-[9%]">Local Cost</th>
+                      <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                      <th className="px-4 py-3 w-[3%]"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {services.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                          <select
+                            className="w-full bg-transparent text-ellipsis overflow-hidden"
+                            value={s.offering}
+                            onChange={(e) =>
+                              updateService(s.id, "offering", e.target.value)
+                            }
+                          >
+                            {dbOffering.map((o, i) => (
+                              <option key={i} value={o.Offering}>
+                                {o.Offering}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                            <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                                placeholder="Description..."
+                                value={s.description}
+                                onChange={(e) => updateService(s.id, "description", e.target.value)}
+                            />
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            className="w-full bg-transparent"
+                            value={s.slc}
+                            onChange={(e) =>
+                              updateService(s.id, "slc", e.target.value)
+                            }
+                          >
+                            {filteredSLCs.map((l, i) => (
+                              <option key={i} value={l.SLC}>
+                                {l.SLC}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="date"
+                            className="w-full bg-transparent text-right"
+                            value={s.startDate}
+                            onChange={(e) =>
+                              updateService(s.id, "startDate", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="date"
+                            className="w-full bg-transparent text-right"
+                            value={s.endDate}
+                            onChange={(e) =>
+                              updateService(s.id, "endDate", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono">
+                          {s.duration}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="number"
+                            className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                            value={s.qty}
+                            onChange={(e) =>
+                              updateService(s.id, "qty", Number(e.target.value))
+                            }
+                          />
+                        </td>
+                        {/* --- INPUT COSTO USD --- */}
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="number"
+                            className="w-full bg-slate-100 rounded text-right px-2 py-1 border border-slate-200"
+                            placeholder="USD"
+                            value={s.unitCostUSD}
+                            onChange={(e) =>
+                              updateService(
+                                s.id,
+                                "unitCostUSD",
+                                Number(e.target.value)
+                              )
+                            }
+                          />
+                        </td>
+                        {/* --- INPUT COSTO LOCAL (NUEVO) --- */}
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="number"
+                            className="w-full bg-slate-100 rounded text-right px-2 py-1 border border-slate-200"
+                            placeholder="Local"
+                            value={s.unitCostLocal}
+                            onChange={(e) =>
+                              updateService(
+                                s.id,
+                                "unitCostLocal",
+                                Number(e.target.value)
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-indigo-700">
+                          {formatCurrency(calculateServiceTotal(s))}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() =>
+                              setServices(services.filter((x) => x.id !== s.id))
+                            }
+                            className="text-red-400 hover:text-red-600 transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between">
-            <h3 className="font-bold text-lg flex gap-2">
-              <Settings className="text-orange-600" /> Management
-            </h3>
-            <button
-              onClick={() =>
-                setManagements([
-                  ...managements,
-                  {
-                    id: Date.now(),
-                    mode: "Machine Category",
-                    categoryDef: activeLPLAT[0].Def,
-                    description: "",
-                    hours: 0,
-                    startDate: initialDates.start,
-                    endDate: initialDates.end,
-                    duration: 12,
-                  },
-                ])
-              }
-              className="bg-orange-600 text-white px-3 py-1 rounded text-sm font-bold"
+          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
+            <div 
+                className="flex items-center gap-3 cursor-pointer group" 
+                onClick={() => toggleSection('management')}
             >
-              + Add
-            </button>
-          </div>
-          <div className="overflow-auto pb-4">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-100 text-xs uppercase">
-                <tr>
-                  <th className="px-4 py-3 w-[12%]">Mode</th>
-                  <th className="px-4 py-3 w-[15%]">Selection</th>
-                  <th className="px-4 py-3 w-[15%]">Description</th>
-                  <th className="px-4 py-3 text-right w-[9%]">Start</th>
-                  <th className="px-4 py-3 text-right w-[9%]">End</th>
-                  <th className="px-4 py-3 text-right w-[4%]">Dur</th>
-                  <th className="px-4 py-3 text-right w-[8%]">Rate</th>
-                  <th className="px-4 py-3 text-right w-[8%]">Hours</th>
-                  <th className="px-4 py-3 text-right w-[15%]">Total</th>
-                  <th className="px-4 py-3 w-[5%]"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {managements.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-1 cursor-pointer">
-                          <input
-                            type="radio"
-                            className="accent-orange-600"
-                            checked={m.mode === "Machine Category"}
-                            onChange={() =>
-                              updateManagement(m.id, "mode", "Machine Category")
-                            }
-                          />
-                          <span className="text-[10px] font-bold text-slate-600">
-                            M.CAT
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-1 cursor-pointer">
-                          <input
-                            type="radio"
-                            className="accent-orange-600"
-                            checked={m.mode === "Brand Rate Full"}
-                            onChange={() =>
-                              updateManagement(m.id, "mode", "Brand Rate Full")
-                            }
-                          />
-                          <span className="text-[10px] font-bold text-slate-600">
-                            B.RATE
-                          </span>
-                        </label>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        className="w-full bg-transparent"
-                        value={m.categoryDef}
-                        onChange={(e) =>
-                          updateManagement(m.id, "categoryDef", e.target.value)
-                        }
-                      >
-                        {(m.mode === "Machine Category"
-                          ? activeLPLAT
-                          : dbLband
-                        ).map((o, i) => (
-                          <option key={i} value={o.Def}>
-                            {o.Def} - {o.Plat}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                        <input
-                            type="text"
-                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
-                            placeholder="Description..."
-                            value={m.description}
-                            onChange={(e) => updateManagement(m.id, "description", e.target.value)}
-                        />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="date"
-                        className="w-full bg-transparent text-right"
-                        value={m.startDate}
-                        onChange={(e) =>
-                          updateManagement(m.id, "startDate", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="date"
-                        className="w-full bg-transparent text-right"
-                        value={m.endDate}
-                        onChange={(e) =>
-                          updateManagement(m.id, "endDate", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {m.duration}
-                    </td>
+                <div className="text-slate-400 group-hover:text-orange-600 transition">
+                    {expandedSections.management ? <Minus size={20} /> : <Plus size={20} />}
+                </div>
+                <h3 className="font-bold text-lg flex gap-2 select-none text-slate-800 group-hover:text-orange-700">
+                  <Settings className="text-orange-600" /> Management
+                </h3>
+            </div>
 
-                    <td className="px-4 py-3 text-right font-mono text-slate-500">
-                      {formatCurrency(
-                        getManagementRate(m.categoryDef, m.mode)
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
-                        value={m.hours}
-                        onChange={(e) =>
-                          updateManagement(
-                            m.id,
-                            "hours",
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-orange-700">
-                      {formatCurrency(calculateManagementTotal(m))}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() =>
-                          setManagements(
-                            managements.filter((x) => x.id !== m.id)
-                          )
-                        }
-                        className="text-red-400 hover:text-red-600 transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {expandedSections.management && (
+                <button
+                  onClick={() =>
+                    setManagements([
+                      ...managements,
+                      {
+                        id: Date.now(),
+                        mode: "Machine Category",
+                        categoryDef: activeLPLAT[0].Def,
+                        description: "",
+                        hours: 0,
+                        startDate: initialDates.start,
+                        endDate: initialDates.end,
+                        duration: 12,
+                      },
+                    ])
+                  }
+                  className="bg-orange-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm hover:bg-orange-700 transition"
+                >
+                  + Add
+                </button>
+            )}
           </div>
+          
+          {expandedSections.management && (
+              <div className="overflow-auto pb-4 transition-all duration-300 ease-in-out">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-100 text-xs uppercase">
+                    <tr>
+                      <th className="px-4 py-3 w-[12%]">Mode</th>
+                      <th className="px-4 py-3 w-[15%]">Selection</th>
+                      <th className="px-4 py-3 w-[15%]">Description</th>
+                      <th className="px-4 py-3 text-right w-[9%]">Start</th>
+                      <th className="px-4 py-3 text-right w-[9%]">End</th>
+                      <th className="px-4 py-3 text-right w-[4%]">Dur</th>
+                      <th className="px-4 py-3 text-right w-[8%]">Rate</th>
+                      <th className="px-4 py-3 text-right w-[8%]">Hours</th>
+                      <th className="px-4 py-3 text-right w-[15%]">Total</th>
+                      <th className="px-4 py-3 w-[5%]"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {managements.map((m) => (
+                      <tr key={m.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                          <div className="flex gap-4">
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="radio"
+                                className="accent-orange-600"
+                                checked={m.mode === "Machine Category"}
+                                onChange={() =>
+                                  updateManagement(m.id, "mode", "Machine Category")
+                                }
+                              />
+                              <span className="text-[10px] font-bold text-slate-600">
+                                M.CAT
+                              </span>
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="radio"
+                                className="accent-orange-600"
+                                checked={m.mode === "Brand Rate Full"}
+                                onChange={() =>
+                                  updateManagement(m.id, "mode", "Brand Rate Full")
+                                }
+                              />
+                              <span className="text-[10px] font-bold text-slate-600">
+                                B.RATE
+                              </span>
+                            </label>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            className="w-full bg-transparent"
+                            value={m.categoryDef}
+                            onChange={(e) =>
+                              updateManagement(m.id, "categoryDef", e.target.value)
+                            }
+                          >
+                            {(m.mode === "Machine Category"
+                              ? activeLPLAT
+                              : dbLband
+                            ).map((o, i) => (
+                              <option key={i} value={o.Def}>
+                                {o.Def} - {o.Plat}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                            <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                                placeholder="Description..."
+                                value={m.description}
+                                onChange={(e) => updateManagement(m.id, "description", e.target.value)}
+                            />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="date"
+                            className="w-full bg-transparent text-right"
+                            value={m.startDate}
+                            onChange={(e) =>
+                              updateManagement(m.id, "startDate", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="date"
+                            className="w-full bg-transparent text-right"
+                            value={m.endDate}
+                            onChange={(e) =>
+                              updateManagement(m.id, "endDate", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono">
+                          {m.duration}
+                        </td>
+
+                        <td className="px-4 py-3 text-right font-mono text-slate-500">
+                          {formatCurrency(
+                            getManagementRate(m.categoryDef, m.mode)
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="number"
+                            className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                            value={m.hours}
+                            onChange={(e) =>
+                              updateManagement(
+                                m.id,
+                                "hours",
+                                Number(e.target.value)
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-orange-700">
+                          {formatCurrency(calculateManagementTotal(m))}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() =>
+                              setManagements(
+                                managements.filter((x) => x.id !== m.id)
+                              )
+                            }
+                            className="text-red-400 hover:text-red-600 transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+          )}
         </div>
 
         {/* --- NEW MODULE: SUPPLIERS --- */}
         <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between">
-            <h3 className="font-bold text-lg flex gap-2">
-              <Truck className="text-teal-600" /> Suppliers
-            </h3>
-            <button
-              onClick={() =>
-                setSuppliers([
-                  ...suppliers,
-                  {
-                    id: Date.now(),
-                    vendorName: "",
-                    frequency: "Monthly",
-                    startDate: initialDates.start,
-                    endDate: initialDates.end,
-                    duration: 12,
-                    qty: 1,
-                    unitCostUSD: 0,
-                    unitCostLocal: 0
-                  },
-                ])
-              }
-              className="bg-teal-600 text-white px-3 py-1 rounded text-sm font-bold"
+          <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
+            <div 
+                className="flex items-center gap-3 cursor-pointer group" 
+                onClick={() => toggleSection('suppliers')}
             >
-              + Add
-            </button>
+                <div className="text-slate-400 group-hover:text-teal-600 transition">
+                    {expandedSections.suppliers ? <Minus size={20} /> : <Plus size={20} />}
+                </div>
+                <h3 className="font-bold text-lg flex gap-2 select-none text-slate-800 group-hover:text-teal-700">
+                  <Truck className="text-teal-600" /> Suppliers
+                </h3>
+            </div>
+
+            {expandedSections.suppliers && (
+                <button
+                  onClick={() =>
+                    setSuppliers([
+                      ...suppliers,
+                      {
+                        id: Date.now(),
+                        vendorName: "",
+                        frequency: "Monthly",
+                        startDate: initialDates.start,
+                        endDate: initialDates.end,
+                        duration: 12,
+                        qty: 1,
+                        unitCostUSD: 0,
+                        unitCostLocal: 0
+                      },
+                    ])
+                  }
+                  className="bg-teal-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm hover:bg-teal-700 transition"
+                >
+                  + Add
+                </button>
+            )}
           </div>
-          <div className="overflow-auto pb-4">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-100 text-xs uppercase">
-                <tr>
-                  <th className="px-4 py-3 w-[20%]">Vendor Name</th>
-                  <th className="px-4 py-3 w-[15%]">Frequency</th>
-                  <th className="px-4 py-3 text-right w-[9%]">Start</th>
-                  <th className="px-4 py-3 text-right w-[9%]">End</th>
-                  <th className="px-4 py-3 text-right w-[4%]">Dur</th>
-                  <th className="px-4 py-3 text-right w-[6%]">Qty</th>
-                  <th className="px-4 py-3 text-right w-[9%]">USD Unit</th>
-                  <th className="px-4 py-3 text-right w-[9%]">Local Unit</th>
-                  <th className="px-4 py-3 text-right w-[12%]">Total</th>
-                  <th className="px-4 py-3 w-[5%]"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {suppliers.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                        <input
-                            type="text"
-                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
-                            placeholder="Vendor Name"
-                            value={s.vendorName}
-                            onChange={(e) => updateSupplier(s.id, "vendorName", e.target.value)}
-                        />
-                    </td>
-                    <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1">
-                            <label className="flex items-center gap-1 cursor-pointer text-xs">
-                                <input 
-                                    type="radio" 
-                                    name={`freq-${s.id}`}
-                                    checked={s.frequency === "OTC"}
-                                    onChange={() => updateSupplier(s.id, "frequency", "OTC")}
-                                    className="accent-teal-600"
-                                /> OTC
-                            </label>
-                            <label className="flex items-center gap-1 cursor-pointer text-xs">
-                                <input 
-                                    type="radio" 
-                                    name={`freq-${s.id}`}
-                                    checked={s.frequency === "Monthly"}
-                                    onChange={() => updateSupplier(s.id, "frequency", "Monthly")}
-                                    className="accent-teal-600"
-                                /> Monthly
-                            </label>
-                            <label className="flex items-center gap-1 cursor-pointer text-xs">
-                                <input 
-                                    type="radio" 
-                                    name={`freq-${s.id}`}
-                                    checked={s.frequency === "Annual"}
-                                    onChange={() => updateSupplier(s.id, "frequency", "Annual")}
-                                    className="accent-teal-600"
-                                /> Annual
-                            </label>
-                        </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="date"
-                        className="w-full bg-transparent text-right"
-                        value={s.startDate}
-                        onChange={(e) => updateSupplier(s.id, "startDate", e.target.value)}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="date"
-                        className="w-full bg-transparent text-right"
-                        value={s.endDate}
-                        onChange={(e) => updateSupplier(s.id, "endDate", e.target.value)}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {s.duration}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
-                        value={s.qty}
-                        onChange={(e) => updateSupplier(s.id, "qty", Number(e.target.value))}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
-                        placeholder="USD"
-                        value={s.unitCostUSD}
-                        onChange={(e) => updateSupplier(s.id, "unitCostUSD", Number(e.target.value))}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-slate-100 rounded text-right px-2 py-1"
-                        placeholder="Local"
-                        value={s.unitCostLocal}
-                        onChange={(e) => updateSupplier(s.id, "unitCostLocal", Number(e.target.value))}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-teal-700">
-                      {formatCurrency(calculateSupplierTotal(s))}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => setSuppliers(suppliers.filter((x) => x.id !== s.id))}
-                        className="text-red-400 hover:text-red-600 transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          
+          {expandedSections.suppliers && (
+              <div className="overflow-auto pb-4 transition-all duration-300 ease-in-out">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-100 text-xs uppercase">
+                    <tr>
+                      <th className="px-4 py-3 w-[20%]">Vendor Name</th>
+                      <th className="px-4 py-3 w-[15%]">Frequency</th>
+                      <th className="px-4 py-3 text-right w-[9%]">Start</th>
+                      <th className="px-4 py-3 text-right w-[9%]">End</th>
+                      <th className="px-4 py-3 text-right w-[4%]">Dur</th>
+                      <th className="px-4 py-3 text-right w-[6%]">Qty</th>
+                      <th className="px-4 py-3 text-right w-[9%]">USD Unit</th>
+                      <th className="px-4 py-3 text-right w-[9%]">Local Unit</th>
+                      <th className="px-4 py-3 text-right w-[12%]">Total</th>
+                      <th className="px-4 py-3 w-[5%]"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {suppliers.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                            <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                                placeholder="Vendor Name"
+                                value={s.vendorName}
+                                onChange={(e) => updateSupplier(s.id, "vendorName", e.target.value)}
+                            />
+                        </td>
+                        <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                                <label className="flex items-center gap-1 cursor-pointer text-xs">
+                                    <input 
+                                        type="radio" 
+                                        name={`freq-${s.id}`}
+                                        checked={s.frequency === "OTC"}
+                                        onChange={() => updateSupplier(s.id, "frequency", "OTC")}
+                                        className="accent-teal-600"
+                                    /> OTC
+                                </label>
+                                <label className="flex items-center gap-1 cursor-pointer text-xs">
+                                    <input 
+                                        type="radio" 
+                                        name={`freq-${s.id}`}
+                                        checked={s.frequency === "Monthly"}
+                                        onChange={() => updateSupplier(s.id, "frequency", "Monthly")}
+                                        className="accent-teal-600"
+                                    /> Monthly
+                                </label>
+                                <label className="flex items-center gap-1 cursor-pointer text-xs">
+                                    <input 
+                                        type="radio" 
+                                        name={`freq-${s.id}`}
+                                        checked={s.frequency === "Annual"}
+                                        onChange={() => updateSupplier(s.id, "frequency", "Annual")}
+                                        className="accent-teal-600"
+                                    /> Annual
+                                </label>
+                            </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="date"
+                            className="w-full bg-transparent text-right"
+                            value={s.startDate}
+                            onChange={(e) => updateSupplier(s.id, "startDate", e.target.value)}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="date"
+                            className="w-full bg-transparent text-right"
+                            value={s.endDate}
+                            onChange={(e) => updateSupplier(s.id, "endDate", e.target.value)}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono">
+                          {s.duration}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="number"
+                            className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                            value={s.qty}
+                            onChange={(e) => updateSupplier(s.id, "qty", Number(e.target.value))}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="number"
+                            className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                            placeholder="USD"
+                            value={s.unitCostUSD}
+                            onChange={(e) => updateSupplier(s.id, "unitCostUSD", Number(e.target.value))}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <input
+                            type="number"
+                            className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                            placeholder="Local"
+                            value={s.unitCostLocal}
+                            onChange={(e) => updateSupplier(s.id, "unitCostLocal", Number(e.target.value))}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-teal-700">
+                          {formatCurrency(calculateSupplierTotal(s))}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => setSuppliers(suppliers.filter((x) => x.id !== s.id))}
+                            className="text-red-400 hover:text-red-600 transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
