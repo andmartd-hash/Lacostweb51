@@ -1228,7 +1228,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V51.6
+            LACOSTWEB V51.8
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1507,7 +1507,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V51.6
+              <IbmLogo /> IBM Costing V51.8
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1526,12 +1526,16 @@ const App = () => {
                 <Plus size={14} /> New
               </button>
 
-              {/* --- ⚡ BOTÓN DE BÚSQUEDA --- */}
+              {/* --- ⚡ BOTÓN DE BÚSQUEDA CORREGIDO --- */}
               <button
-                onClick={() => setIsSearchModalOpen(true)}
+                onClick={() => {
+                  setSearchTerm("");       // Limpiar término anterior
+                  setSearchResults([]);    // Limpiar resultados anteriores
+                  setIsSearchModalOpen(true);
+                }}
                 className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1 border border-indigo-200 hover:bg-indigo-200 transition"
               >
-                <Search size={14} /> Buscar Quote
+                <Search size={14} /> Find Quote
               </button>
 
               <button
