@@ -47,7 +47,7 @@ import {
   Search,
   FileText,
   Plus,
-  Minus, // Importamos Minus para el colapso
+  Minus,
   Save,
   Info,
   List, 
@@ -1347,7 +1347,7 @@ const App = () => {
             <IbmLogo />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">
-            LACOSTWEB V52.2
+            LACOSTWEB V52.3
           </h2>
           <p className="text-slate-500 text-center mb-6 text-sm">
             Please sign in to continue
@@ -1626,7 +1626,7 @@ const App = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold flex gap-3 text-slate-900">
-              <IbmLogo /> IBM Costing V52.2
+              <IbmLogo /> IBM Costing V52.3
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <span className="font-bold text-sm text-slate-500">ID:</span>
@@ -1845,17 +1845,17 @@ const App = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-100 text-xs uppercase">
                     <tr>
-                      <th className="px-4 py-3 w-[18%]">Offering</th>
-                      <th className="px-4 py-3 w-[15%]">Description</th>
-                      <th className="px-4 py-3 w-[8%]">SLC</th>
+                      <th className="px-4 py-3 w-[20%] text-left">Offering</th>
+                      <th className="px-4 py-3 w-[20%] text-left">Description</th>
+                      <th className="px-4 py-3 w-[7%] text-left">SLC</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
-                      <th className="px-4 py-3 text-right w-[4%]">Dur</th>
-                      <th className="px-4 py-3 text-right w-[6%]">Qty</th>
+                      <th className="px-4 py-3 text-center w-[3%]">Dur</th>
+                      <th className="px-4 py-3 text-center w-[5%]">Qty</th>
                       {/* --- NUEVAS COLUMNAS DE COSTOS --- */}
-                      <th className="px-4 py-3 text-right w-[9%]">USD Cost</th>
-                      <th className="px-4 py-3 text-right w-[9%]">Local Cost</th>
-                      <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                      <th className="px-4 py-3 text-right w-[8%]">USD Cost</th>
+                      <th className="px-4 py-3 text-right w-[8%]">Local Cost</th>
+                      <th className="px-4 py-3 text-right w-[8%]">Total</th>
                       <th className="px-4 py-3 w-[3%]"></th>
                     </tr>
                   </thead>
@@ -1921,13 +1921,13 @@ const App = () => {
                             }
                           />
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">
+                        <td className="px-4 py-3 text-center font-mono">
                           {s.duration}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-center">
                           <input
                             type="number"
-                            className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                            className="w-full bg-slate-100 rounded text-center px-1 py-1"
                             value={s.qty}
                             onChange={(e) =>
                               updateService(s.id, "qty", Number(e.target.value))
@@ -2030,16 +2030,16 @@ const App = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-100 text-xs uppercase">
                     <tr>
-                      <th className="px-4 py-3 w-[12%]">Mode</th>
-                      <th className="px-4 py-3 w-[15%]">Selection</th>
-                      <th className="px-4 py-3 w-[15%]">Description</th>
+                      <th className="px-4 py-3 w-[12%] text-left">Mode</th>
+                      <th className="px-4 py-3 w-[18%] text-left">Selection</th>
+                      <th className="px-4 py-3 w-[20%] text-left">Description</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
-                      <th className="px-4 py-3 text-right w-[4%]">Dur</th>
-                      <th className="px-4 py-3 text-right w-[8%]">Rate</th>
-                      <th className="px-4 py-3 text-right w-[8%]">Hours</th>
-                      <th className="px-4 py-3 text-right w-[15%]">Total</th>
-                      <th className="px-4 py-3 w-[5%]"></th>
+                      <th className="px-4 py-3 text-center w-[3%]">Dur</th>
+                      <th className="px-4 py-3 text-right w-[7%]">Rate</th>
+                      <th className="px-4 py-3 text-right w-[6%]">Hours</th>
+                      <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                      <th className="px-4 py-3 w-[3%]"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2122,7 +2122,7 @@ const App = () => {
                             }
                           />
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">
+                        <td className="px-4 py-3 text-center font-mono">
                           {m.duration}
                         </td>
 
@@ -2213,16 +2213,16 @@ const App = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-100 text-xs uppercase">
                     <tr>
-                      <th className="px-4 py-3 w-[20%]">Vendor Name</th>
-                      <th className="px-4 py-3 w-[15%]">Frequency</th>
+                      <th className="px-4 py-3 w-[25%] text-left">Vendor Name</th>
+                      <th className="px-4 py-3 w-[15%] text-left">Frequency</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
-                      <th className="px-4 py-3 text-right w-[4%]">Dur</th>
-                      <th className="px-4 py-3 text-right w-[6%]">Qty</th>
-                      <th className="px-4 py-3 text-right w-[9%]">USD Unit</th>
-                      <th className="px-4 py-3 text-right w-[9%]">Local Unit</th>
-                      <th className="px-4 py-3 text-right w-[12%]">Total</th>
-                      <th className="px-4 py-3 w-[5%]"></th>
+                      <th className="px-4 py-3 text-center w-[3%]">Dur</th>
+                      <th className="px-4 py-3 text-center w-[5%]">Qty</th>
+                      <th className="px-4 py-3 text-right w-[8%]">USD Unit</th>
+                      <th className="px-4 py-3 text-right w-[8%]">Local Unit</th>
+                      <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                      <th className="px-4 py-3 w-[3%]"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2284,13 +2284,13 @@ const App = () => {
                             onChange={(e) => updateSupplier(s.id, "endDate", e.target.value)}
                           />
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">
+                        <td className="px-4 py-3 text-center font-mono">
                           {s.duration}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-center">
                           <input
                             type="number"
-                            className="w-full bg-slate-100 rounded text-right px-2 py-1"
+                            className="w-full bg-slate-100 rounded text-center px-1 py-1"
                             value={s.qty}
                             onChange={(e) => updateSupplier(s.id, "qty", Number(e.target.value))}
                           />
