@@ -1845,23 +1845,33 @@ const App = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-100 text-xs uppercase">
                     <tr>
+                      <th className="px-4 py-3 w-[25%] text-left">Description</th> {/* MOVED FIRST */}
                       <th className="px-4 py-3 w-[20%] text-left">Offering</th>
-                      <th className="px-4 py-3 w-[20%] text-left">Description</th>
                       <th className="px-4 py-3 w-[7%] text-left">SLC</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
                       <th className="px-4 py-3 text-center w-[3%]">Dur</th>
                       <th className="px-4 py-3 text-center w-[5%]">Qty</th>
-                      {/* --- NUEVAS COLUMNAS DE COSTOS --- */}
+                      {/* --- COLUMNAS DE COSTOS --- */}
                       <th className="px-4 py-3 text-right w-[8%]">USD Cost</th>
                       <th className="px-4 py-3 text-right w-[8%]">Local Cost</th>
                       <th className="px-4 py-3 text-right w-[8%]">Total</th>
-                      <th className="px-4 py-3 w-[3%]"></th>
+                      <th className="px-4 py-3 w-[3%] text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {services.map((s) => (
                       <tr key={s.id} className="hover:bg-slate-50">
+                        {/* DESCRIPTION MOVED FIRST */}
+                        <td className="px-4 py-3">
+                            <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                                placeholder="Description..."
+                                value={s.description}
+                                onChange={(e) => updateService(s.id, "description", e.target.value)}
+                            />
+                        </td>
                         <td className="px-4 py-3">
                           <select
                             className="w-full bg-transparent text-ellipsis overflow-hidden"
@@ -1876,15 +1886,6 @@ const App = () => {
                               </option>
                             ))}
                           </select>
-                        </td>
-                        <td className="px-4 py-3">
-                            <input
-                                type="text"
-                                className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
-                                placeholder="Description..."
-                                value={s.description}
-                                onChange={(e) => updateService(s.id, "description", e.target.value)}
-                            />
                         </td>
                         <td className="px-4 py-3">
                           <select
@@ -2030,21 +2031,31 @@ const App = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-100 text-xs uppercase">
                     <tr>
-                      <th className="px-4 py-3 w-[12%] text-left">Mode</th>
+                      <th className="px-4 py-3 w-[25%] text-left">Description</th> {/* MOVED FIRST */}
+                      <th className="px-4 py-3 w-[15%] text-left">Mode</th>
                       <th className="px-4 py-3 w-[18%] text-left">Selection</th>
-                      <th className="px-4 py-3 w-[20%] text-left">Description</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
                       <th className="px-4 py-3 text-center w-[3%]">Dur</th>
                       <th className="px-4 py-3 text-right w-[7%]">Rate</th>
                       <th className="px-4 py-3 text-right w-[6%]">Hours</th>
                       <th className="px-4 py-3 text-right w-[10%]">Total</th>
-                      <th className="px-4 py-3 w-[3%]"></th>
+                      <th className="px-4 py-3 w-[3%] text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {managements.map((m) => (
                       <tr key={m.id} className="hover:bg-slate-50">
+                        {/* DESCRIPTION MOVED FIRST */}
+                        <td className="px-4 py-3">
+                            <input
+                                type="text"
+                                className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
+                                placeholder="Description..."
+                                value={m.description}
+                                onChange={(e) => updateManagement(m.id, "description", e.target.value)}
+                            />
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-4">
                             <label className="flex items-center gap-1 cursor-pointer">
@@ -2092,15 +2103,6 @@ const App = () => {
                               </option>
                             ))}
                           </select>
-                        </td>
-                        <td className="px-4 py-3">
-                            <input
-                                type="text"
-                                className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1"
-                                placeholder="Description..."
-                                value={m.description}
-                                onChange={(e) => updateManagement(m.id, "description", e.target.value)}
-                            />
                         </td>
                         <td className="px-4 py-3 text-right">
                           <input
@@ -2222,7 +2224,7 @@ const App = () => {
                       <th className="px-4 py-3 text-right w-[8%]">USD Unit</th>
                       <th className="px-4 py-3 text-right w-[8%]">Local Unit</th>
                       <th className="px-4 py-3 text-right w-[10%]">Total</th>
-                      <th className="px-4 py-3 w-[3%]"></th>
+                      <th className="px-4 py-3 w-[3%] text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
