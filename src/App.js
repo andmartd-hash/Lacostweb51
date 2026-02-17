@@ -1847,16 +1847,16 @@ const App = () => {
                     <tr>
                       <th className="px-4 py-3 w-[25%] text-left">Description</th> {/* MOVED FIRST */}
                       <th className="px-4 py-3 w-[20%] text-left">Offering</th>
-                      <th className="px-4 py-3 w-[7%] text-left">SLC</th>
+                      <th className="px-4 py-3 w-[10%] text-left">SLC</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
                       <th className="px-4 py-3 text-center w-[3%]">Dur</th>
-                      <th className="px-4 py-3 text-center w-[5%]">Qty</th>
+                      <th className="px-4 py-3 text-center w-[4%]">Qty</th>
                       {/* --- COLUMNAS DE COSTOS --- */}
-                      <th className="px-4 py-3 text-right w-[8%]">USD Cost</th>
-                      <th className="px-4 py-3 text-right w-[8%]">Local Cost</th>
-                      <th className="px-4 py-3 text-right w-[8%]">Total</th>
-                      <th className="px-4 py-3 w-[3%] text-center"></th>
+                      <th className="px-4 py-3 text-right w-[6%]">USD Cost</th>
+                      <th className="px-4 py-3 text-right w-[6%]">Local Cost</th>
+                      <th className="px-4 py-3 text-right w-[6%]">Total</th>
+                      <th className="px-4 py-3 w-[2%] text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2032,14 +2032,14 @@ const App = () => {
                   <thead className="bg-slate-100 text-xs uppercase">
                     <tr>
                       <th className="px-4 py-3 w-[25%] text-left">Description</th> {/* MOVED FIRST */}
-                      <th className="px-4 py-3 w-[15%] text-left">Mode</th>
+                      <th className="px-4 py-3 w-[12%] text-left">Mode</th>
                       <th className="px-4 py-3 w-[18%] text-left">Selection</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
                       <th className="px-4 py-3 text-center w-[3%]">Dur</th>
-                      <th className="px-4 py-3 text-right w-[7%]">Rate</th>
-                      <th className="px-4 py-3 text-right w-[6%]">Hours</th>
-                      <th className="px-4 py-3 text-right w-[10%]">Total</th>
+                      <th className="px-4 py-3 text-right w-[8%]">Rate</th>
+                      <th className="px-4 py-3 text-right w-[5%]">Hours</th>
+                      <th className="px-4 py-3 text-right w-[8%]">Total</th>
                       <th className="px-4 py-3 w-[3%] text-center"></th>
                     </tr>
                   </thead>
@@ -2215,16 +2215,16 @@ const App = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-100 text-xs uppercase">
                     <tr>
-                      <th className="px-4 py-3 w-[25%] text-left">Vendor Name</th>
-                      <th className="px-4 py-3 w-[15%] text-left">Frequency</th>
+                      <th className="px-4 py-3 w-[30%] text-left">Vendor Name</th>
+                      <th className="px-4 py-3 w-[25%] text-left">Frequency</th>
                       <th className="px-4 py-3 text-right w-[9%]">Start</th>
                       <th className="px-4 py-3 text-right w-[9%]">End</th>
                       <th className="px-4 py-3 text-center w-[3%]">Dur</th>
-                      <th className="px-4 py-3 text-center w-[5%]">Qty</th>
-                      <th className="px-4 py-3 text-right w-[8%]">USD Unit</th>
-                      <th className="px-4 py-3 text-right w-[8%]">Local Unit</th>
-                      <th className="px-4 py-3 text-right w-[10%]">Total</th>
-                      <th className="px-4 py-3 w-[3%] text-center"></th>
+                      <th className="px-4 py-3 text-center w-[4%]">Qty</th>
+                      <th className="px-4 py-3 text-right w-[6%]">USD Unit</th>
+                      <th className="px-4 py-3 text-right w-[6%]">Local Unit</th>
+                      <th className="px-4 py-3 text-right w-[6%]">Total</th>
+                      <th className="px-4 py-3 w-[2%] text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
