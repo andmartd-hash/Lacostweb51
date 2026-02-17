@@ -10,7 +10,7 @@ import {
   getFirestore,
   doc,
   setDoc,
-  deleteDoc, // Importamos deleteDoc
+  deleteDoc,
   onSnapshot,
   collection,
   getDocs,
@@ -371,6 +371,7 @@ const INITIAL_LPLAT_BRAZIL = [
 
 const INITIAL_LBAND = [
   {
+    Scope: "Global", // Added Scope
     Def: "B1",
     Plat: "FULL",
     Colombia: 15248.0,
@@ -384,6 +385,7 @@ const INITIAL_LBAND = [
     Venezuela: 0,
   },
   {
+    Scope: "Global",
     Def: "B2",
     Plat: "FULL",
     Colombia: 26845.88,
@@ -397,6 +399,7 @@ const INITIAL_LBAND = [
     Venezuela: 0,
   },
   {
+    Scope: "Global",
     Def: "B3",
     Plat: "FULL",
     Colombia: 47250.0,
@@ -410,6 +413,7 @@ const INITIAL_LBAND = [
     Venezuela: 0,
   },
   {
+    Scope: "Global",
     Def: "B4",
     Plat: "FULL",
     Colombia: 60375.0,
@@ -423,6 +427,7 @@ const INITIAL_LBAND = [
     Venezuela: 24810.48,
   },
   {
+    Scope: "Global",
     Def: "B5",
     Plat: "FULL",
     Colombia: 84525.0,
@@ -436,6 +441,7 @@ const INITIAL_LBAND = [
     Venezuela: 26582.65,
   },
   {
+    Scope: "Global",
     Def: "B6",
     Plat: "FULL",
     Colombia: 126000.0,
@@ -449,6 +455,7 @@ const INITIAL_LBAND = [
     Venezuela: 0,
   },
   {
+    Scope: "Global",
     Def: "B7",
     Plat: "FULL",
     Colombia: 151200.0,
@@ -462,6 +469,7 @@ const INITIAL_LBAND = [
     Venezuela: 0,
   },
   {
+    Scope: "Global",
     Def: "B8",
     Plat: "FULL",
     Colombia: 176400.0,
@@ -475,6 +483,7 @@ const INITIAL_LBAND = [
     Venezuela: 0,
   },
   {
+    Scope: "Global",
     Def: "B9",
     Plat: "FULL",
     Colombia: 201600.0,
@@ -488,6 +497,7 @@ const INITIAL_LBAND = [
     Venezuela: 0,
   },
   {
+    Scope: "Global",
     Def: "B10",
     Plat: "FULL",
     Colombia: 226800.0,
@@ -500,6 +510,16 @@ const INITIAL_LBAND = [
     Uruguay: 0,
     Venezuela: 0,
   },
+  // --- NEW BRAZIL SPECIFIC ENTRIES FROM IMAGE ---
+  { Scope: "Only Brazil", Def: "B2 - Stand", Plat: "FULL", Brazil: 20.55 },
+  { Scope: "Only Brazil", Def: "B3 - Stand", Plat: "FULL", Brazil: 23.48 },
+  { Scope: "Only Brazil", Def: "B4 - Stand", Plat: "FULL", Brazil: 33.56 },
+  { Scope: "Only Brazil", Def: "B5 - Stand", Plat: "FULL", Brazil: 38.29 },
+  { Scope: "Only Brazil", Def: "B6 - Stand", Plat: "FULL", Brazil: 49.76 },
+  { Scope: "Only Brazil", Def: "B7 - Stand", Plat: "FULL", Brazil: 65.54 },
+  { Scope: "Only Brazil", Def: "B8 - Stand", Plat: "FULL", Brazil: 92.34 },
+  { Scope: "Only Brazil", Def: "B9 - Stand", Plat: "FULL", Brazil: 145.46 },
+  { Scope: "Only Brazil", Def: "B10 - Stand", Plat: "FULL", Brazil: 222.15 },
 ];
 
 // --- APP COMPONENT ---
@@ -1149,6 +1169,18 @@ const App = () => {
     [globalConfig.country, dbLplatBrazil, dbLplatGlobal]
   );
 
+  // --- LOGIC: Filter LBAND based on Country (Brazil vs Others) ---
+  const activeLband = useMemo(() => {
+    return dbLband.filter(item => {
+        if (globalConfig.country === "Brazil") {
+            // Show Global AND Only Brazil items
+            return item.Scope === "Global" || item.Scope === "Only Brazil";
+        }
+        // Show Only Global items
+        return item.Scope === "Global";
+    });
+  }, [globalConfig.country, dbLband]);
+
   useEffect(() => {
     const c = dbCountries.find((x) => x.Country === globalConfig.country);
     if (c) setGlobalConfig((p) => ({ ...p, exchangeRate: c.ER, tax: c.Tax }));
@@ -1219,7 +1251,7 @@ const App = () => {
         const u = { ...m, [f]: v };
         if (f === "mode")
           u.categoryDef = (
-            v === "Machine Category" ? activeLPLAT : dbLband
+            v === "Machine Category" ? activeLPLAT : activeLband // Used filtered activeLband
           )[0]?.Def;
         if (f === "startDate" || f === "endDate")
           u.duration = calculateDuration(
@@ -2096,7 +2128,7 @@ const App = () => {
                           >
                             {(m.mode === "Machine Category"
                               ? activeLPLAT
-                              : dbLband
+                              : activeLband // Use filtered activeLband
                             ).map((o, i) => (
                               <option key={i} value={o.Def}>
                                 {o.Def} - {o.Plat}
